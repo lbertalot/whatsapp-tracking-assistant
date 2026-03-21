@@ -1,22 +1,30 @@
 import logging
+import time
 from datetime import datetime
 from typing import List
 
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import settings
 from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.state_mapper import map_raw_status
 from backend.app.services.weraha import WerahaAdapter
+from backend.app.services.whatsapp import WhatsAppService
 
 logger = logging.getLogger(__name__)
 
+_use_mock = settings.APP_ENV in ("testing", "development") and not settings.WERAHA_API_URL.startswith("http")
+
 weraha_adapter = WerahaAdapter()
-notification_engine = NotificationEngine()
+whatsapp_service = WhatsAppService(mock=_use_mock)
+notification_engine = NotificationEngine(whatsapp=whatsapp_service)
 
 TERMINAL_STATUSES = {"delivered", "notification_failed"}
 POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
+
+POLL_INTERVAL_SECONDS = 300
 
 
 def get_eligible_orders(db: Session) -> List[Order]:
@@ -77,3 +85,29 @@ def run_polling_cycle(db: Session) -> int:
         process_order(db, order)
 
     return len(orders)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=getattr(logging, settings.LOG_LEVEL),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    from backend.app.db.session import SessionLocal
+
+    logger.info(
+        "Worker starting (mock=%s, interval=%ds)",
+        _use_mock,
+        POLL_INTERVAL_SECONDS,
+    )
+
+    while True:
+        db = SessionLocal()
+        try:
+            processed = run_polling_cycle(db)
+            logger.info("Cycle complete: %d orders processed", processed)
+        except Exception:
+            logger.exception("Polling cycle failed")
+        finally:
+            db.close()
+
+        time.sleep(POLL_INTERVAL_SECONDS)

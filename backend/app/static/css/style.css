@@ -275,12 +275,14 @@ body {
 .orders-table tr:last-child td { border-bottom: none; }
 .orders-table tr:hover { background: var(--color-bg); }
 .orders-table tr.row-error { background: #fff5f5; }
+.orders-table tr.row-warning { background: #fffbeb; }
 
-.col-id { font-weight: 600; }
+.col-id { font-weight: 600; white-space: nowrap; }
+.col-customer { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-template { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-preview { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-date { white-space: nowrap; color: var(--color-text-muted); font-size: 0.8125rem; }
-.col-error { white-space: nowrap; }
+.col-error { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* --- Badges --- */
 .badge {
@@ -297,6 +299,7 @@ body {
 .badge-warning { background: var(--color-warning-bg); color: var(--color-warning); }
 .badge-error { background: var(--color-error-bg); color: var(--color-error); }
 .badge-muted { background: var(--color-muted-bg); color: var(--color-text-muted); }
+.badge-sm { padding: 0.1rem 0.4rem; font-size: 0.6875rem; margin-left: 0.25rem; vertical-align: middle; }
 
 .error-detail { cursor: help; }
 
@@ -393,5 +396,5 @@ body {
 
 @media (max-width: 480px) {
     .brand-name { display: none; }
-    .col-template, .col-preview { display: none; }
+    .col-template, .col-preview, .col-customer { display: none; }
 }

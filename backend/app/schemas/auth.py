@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
@@ -18,3 +20,4 @@ class UserResponse(BaseModel):
     email: str
     store_id: int
     role: str
+    store_name: Optional[str] = None

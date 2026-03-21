@@ -60,9 +60,12 @@ def list_orders(
         items=[
             OrderListItem(
                 order_id=o.id,
+                external_id=o.external_id,
                 store_id=o.store_id,
+                customer_name=o.customer_name,
                 status=o.current_status,
                 notification_status=o.notification_status,
+                invalid_phone=o.invalid_phone or False,
                 last_message_type=o.last_message_type,
                 last_template_name=o.last_template_name,
                 last_message_preview=o.last_message_preview,

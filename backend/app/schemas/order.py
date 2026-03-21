@@ -27,9 +27,12 @@ class OrderListItem(BaseModel):
     model_config = {"from_attributes": True}
 
     order_id: int
+    external_id: Optional[str] = None
     store_id: int
+    customer_name: Optional[str] = None
     status: Optional[str] = None
     notification_status: Optional[str] = None
+    invalid_phone: bool = False
     last_message_type: Optional[str] = None
     last_template_name: Optional[str] = None
     last_message_preview: Optional[str] = None

@@ -74,7 +74,7 @@
                     .then(r => r.ok ? r.json() : Promise.reject())
                     .then(data => {
                         const el = document.getElementById('storeName');
-                        if (el && data.email) el.textContent = data.email;
+                        if (el) el.textContent = data.store_name || data.email;
                     })
                     .catch(() => {});
             }

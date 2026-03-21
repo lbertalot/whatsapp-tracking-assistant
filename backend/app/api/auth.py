@@ -21,5 +21,14 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-def me(current_user: StoreUser = Depends(get_current_user)):
-    return current_user
+def me(current_user: StoreUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    from backend.app.models.store import Store
+
+    store = db.query(Store).filter(Store.id == current_user.store_id).first()
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        store_id=current_user.store_id,
+        role=current_user.role,
+        store_name=store.name if store else None,
+    )
