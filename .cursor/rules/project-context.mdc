@@ -1,0 +1,46 @@
+---
+description: Contexto global del proyecto. Leer SIEMPRE antes de cualquier tarea.
+globs:
+alwaysApply: true
+---
+
+# WhatsApp Post-Purchase Assistant — Paraguay
+
+## Qué es este proyecto
+Sistema MVP que envía notificaciones automáticas por WhatsApp cuando el estado logístico de un envío cambia, reduciendo consultas WISMO para merchants en Paraguay.
+
+## Documentos fuente de verdad
+- `PRD.md` — producto, ICP, propuesta de valor, métricas, riesgos
+- `RFC.md` — diseño técnico, modelo de datos, endpoints, reglas operativas
+- `ADR.md` — decisiones de arquitectura, stack, topología, fases
+
+Ante cualquier duda de alcance, comportamiento o diseño, consultá estos archivos primero.
+
+## Stack decidido
+- **Backend**: FastAPI (Python 3.11+)
+- **Base de datos**: PostgreSQL
+- **Infraestructura**: Heroku (web dyno + worker dyno + scheduler + postgres)
+- **UI**: integrada al backend (Jinja2 templates + static assets), NO Next.js
+- **WhatsApp**: Meta Cloud API directa
+- **Logística**: Weraha API
+
+## Principios de desarrollo
+- Simplicidad > features
+- Visibilidad > automatización
+- Velocidad > perfección
+- Monolito primero
+- Observable desde el día 1
+- Multi-merchant desde el día 1
+- Evitar sobreingeniería
+
+## Qué NO es este proyecto
+- NO es un CRM
+- NO es un chatbot
+- NO soporta múltiples couriers (solo Weraha)
+- NO soporta múltiples países (solo Paraguay)
+- NO tiene analytics avanzados
+
+## Idioma
+- Código, variables, funciones, commits: inglés
+- UI del merchant, mensajes WhatsApp, documentación de producto: español
+- Comunicación con el usuario: español

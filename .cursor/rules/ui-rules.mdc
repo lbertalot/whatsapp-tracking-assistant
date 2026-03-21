@@ -1,0 +1,40 @@
+---
+description: Reglas para la UI integrada del panel merchant
+globs:
+  - backend/app/templates/**/*.html
+  - backend/app/static/**/*
+---
+
+# UI del panel — Reglas
+
+## Decisión arquitectónica
+- La UI es parte vendible del producto, NO soporte interno
+- Se implementa con Jinja2 templates dentro del backend FastAPI
+- NO se usa Next.js, React ni frontend separado en el MVP
+
+## Pantallas mínimas del MVP
+1. **Login** — email y contraseña
+2. **Lista de órdenes** — tabla con:
+   - ID de orden
+   - estado logístico actual
+   - estado de notificación (sent, failed, pending)
+   - último evento/template enviado
+   - fecha de última notificación
+   - error visible si existe
+3. **Estado vacío** — mensaje claro si no hay órdenes
+
+## Lineamientos de diseño
+- Colores de estado:
+  - verde → entregado
+  - amarillo → en tránsito
+  - rojo → error
+- Diseño limpio, funcional y profesional
+- Mobile-friendly como mínimo
+- Sin frameworks CSS pesados; se puede usar algo liviano como Pico CSS o similar
+
+## Lo que NO se incluye en el MVP
+- Filtros avanzados
+- Analytics avanzados
+- Roles complejos
+- Branding multi-tenant avanzado
+- Detalle expandido de orden

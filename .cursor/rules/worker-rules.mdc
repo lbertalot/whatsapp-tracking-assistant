@@ -1,0 +1,46 @@
+---
+description: Reglas para el polling worker y notificaciones
+globs:
+  - backend/app/workers/**/*.py
+  - backend/app/services/weraha*.py
+  - backend/app/services/whatsapp*.py
+  - backend/app/services/notification*.py
+---
+
+# Worker y notificaciones — Reglas
+
+## Polling Worker
+- Se ejecuta como proceso separado (worker dyno en Heroku)
+- El scheduler dispara la ejecución periódica
+- Solo procesa órdenes de tiendas con `onboarding_status = active`
+- Solo procesa órdenes con `tracking_number` presente
+
+## Flujo del worker
+1. Obtener órdenes elegibles (no entregadas, tienda activa)
+2. Consultar estado en Weraha por cada orden
+3. Mapear estado raw a estado interno (`in_transit`, `delivered`)
+4. Si hay cambio de estado:
+   - Actualizar `orders.current_status`
+   - Verificar idempotencia
+   - Enviar notificación WhatsApp
+   - Registrar intento en `notification_attempts`
+   - Actualizar campos de visibilidad en `orders`
+
+## Weraha Adapter
+- Consulta estado logístico por tracking_number
+- Devuelve estado raw
+- Si falla: loggear error, no bloquear otras órdenes
+
+## State Mapper
+- Mapea estados raw de Weraha a estados internos
+- Solo soporta: `in_transit` y `delivered`
+
+## WhatsApp Service
+- Usa Meta Cloud API
+- Envía templates pre-aprobados
+- Templates mínimos: `shipping_in_transit_v1`, `shipping_delivered_v1`
+- Si falla: 1 retry automático, luego marcar como failed
+
+## Reglas de idempotencia
+- Antes de enviar, verificar que no exista un intento exitoso con la misma `idempotency_key`
+- `idempotency_key = {store_id}:{order_id}:{event_type}`

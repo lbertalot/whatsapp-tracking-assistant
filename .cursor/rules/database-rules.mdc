@@ -1,0 +1,50 @@
+---
+description: Reglas para modelo de datos y migraciones
+globs:
+  - backend/app/models/**/*.py
+  - backend/app/db/**/*.py
+  - "*.sql"
+---
+
+# Base de datos — Reglas
+
+## Tablas del sistema
+
+### Tenancy
+- `stores` — tiendas registradas
+- `store_installations` — fuente de órdenes conectada
+- `store_settings` — configuración de Weraha, WhatsApp, onboarding
+- `store_users` — usuarios del panel
+
+### Negocio
+- `orders` — órdenes con estado logístico y de notificación
+- `notification_attempts` — historial de envíos con idempotencia
+
+## Reglas de modelo
+- Toda tabla de negocio tiene `store_id` como FK obligatoria
+- Toda tabla tiene `created_at` y `updated_at`
+- `orders.external_id` es el ID de la orden en el sistema origen
+- `notification_attempts.idempotency_key` es UNIQUE y se compone de `store_id:order_id:event_type`
+- Passwords en `store_users` se almacenan como hash, NUNCA en texto plano
+
+## Estados de orden
+- `pending_tracking`
+- `ready_for_polling`
+- `in_transit`
+- `delivered`
+- `notification_failed`
+- `invalid_phone`
+
+## Estados de onboarding
+- `pending`
+- `weraha_connected`
+- `whatsapp_connected`
+- `templates_ready`
+- `test_sent`
+- `active`
+- `blocked`
+
+## Migraciones
+- Usar Alembic
+- Una migración por cambio lógico
+- Nunca editar migraciones ya aplicadas

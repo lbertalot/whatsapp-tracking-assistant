@@ -1,0 +1,60 @@
+---
+description: Reglas para desarrollo del backend FastAPI
+globs:
+  - backend/**/*.py
+---
+
+# Backend — Reglas de desarrollo
+
+## Estructura de proyecto
+```
+backend/
+  app/
+    api/          # routers FastAPI
+    services/     # lógica de negocio
+    models/       # SQLAlchemy models
+    workers/      # polling worker y jobs
+    db/           # conexión, migraciones, session
+    templates/    # Jinja2 templates para UI
+    static/       # CSS, JS, assets
+    core/         # config, security, dependencies
+```
+
+## Convenciones de código
+- Python 3.11+
+- Type hints obligatorios en funciones públicas
+- Async para endpoints y operaciones IO (Weraha, WhatsApp, DB)
+- SQLAlchemy como ORM
+- Alembic para migraciones
+- Pydantic para validación de request/response
+- phonenumbers para normalización de teléfonos a E.164
+
+## Aislamiento multi-merchant
+- TODA query a la base de datos DEBE filtrar por `store_id`
+- NUNCA exponer datos de una tienda a otra
+- El `store_id` se obtiene del usuario autenticado en cada request
+
+## Idempotencia de notificaciones
+- Clave: `{store_id}:{order_id}:{event_type}`
+- No enviar dos veces una notificación exitosa para el mismo evento
+- Registrar cada intento en `notification_attempts`
+- Los campos `last_message_*` en `orders` reflejan el último intento
+
+## Manejo de errores
+- Teléfono inválido: marcar `invalid_phone=True`, no enviar, registrar
+- Error WhatsApp: 1 retry automático, luego marcar como `failed`
+- Error Weraha: loggear, no bloquear el flujo de otras órdenes
+
+## Endpoints mínimos
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /me`
+- `GET /orders` (scopeado por store_id, con paginación)
+- `POST /webhooks/orders` (ingestión)
+- `GET /health`
+- `GET /ready`
+
+## Tests
+- Usar pytest
+- Fixtures para store, user, orders de prueba
+- Mock de Weraha y WhatsApp API en tests
