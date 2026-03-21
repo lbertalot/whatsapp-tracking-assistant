@@ -30,6 +30,7 @@ class StoreInstallation(Base):
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
     order_source_type = Column(String(50), nullable=False)
     installed_at = Column(DateTime, nullable=True)
+    access_token = Column(Text, nullable=True)
     is_active = Column(Boolean, default=False)
     last_tested_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,56 +1,63 @@
 import os
+import uuid
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
+os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("APP_ENV", "testing")
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from backend.app.db.base import Base
-import backend.app.models  # noqa: F401 — registers all models with Base.metadata
+import backend.app.models  # noqa: F401
 from backend.app.db.session import get_db
 from backend.app.main import app
+
+TEST_ENGINE = create_engine(
+    "sqlite://",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+
+
+@event.listens_for(TEST_ENGINE, "connect")
+def _enable_sqlite_fk(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
+Base.metadata.create_all(bind=TEST_ENGINE)
+
+TestingSession = sessionmaker(bind=TEST_ENGINE)
 
 
 @pytest.fixture(scope="session")
 def engine():
-    engine = create_engine(
-        "sqlite:///./test.db",
-        connect_args={"check_same_thread": False},
-    )
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-    if os.path.exists("./test.db"):
-        os.remove("./test.db")
+    return TEST_ENGINE
 
 
 @pytest.fixture
-def db_session(engine):
-    TestingSessionLocal = sessionmaker(bind=engine)
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.rollback()
-        session.close()
+def db_session():
+    session = TestingSession()
+    yield session
+    session.rollback()
+    session.close()
 
 
 @pytest.fixture
-def client(engine):
-    TestingSessionLocal = sessionmaker(bind=engine)
-
-    def _override_get_db():
-        session = TestingSessionLocal()
+def client():
+    def _override():
+        session = TestingSession()
         try:
             yield session
         finally:
             session.close()
 
-    app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_db] = _override
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

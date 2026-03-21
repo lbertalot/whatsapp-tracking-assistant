@@ -12,8 +12,11 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
     external_id = Column(String(100), nullable=True)
+    customer_name = Column(String(200), nullable=True)
+    raw_phone = Column(String(50), nullable=True)
     normalized_phone = Column(String(20), nullable=True)
     tracking_number = Column(String(100), nullable=True)
+    tracking_url = Column(String(500), nullable=True)
 
     current_status = Column(String(50), nullable=True)
 
