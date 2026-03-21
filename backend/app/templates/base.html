@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WTA{% endblock %} — WhatsApp Tracking Assistant</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <a href="/panel" class="brand">
+                <span class="brand-icon">📦</span>
+                <span class="brand-name">WTA</span>
+            </a>
+            <nav class="header-nav" id="headerNav">
+                <span class="store-name" id="storeName"></span>
+                <button class="btn btn-sm btn-outline" id="logoutBtn" style="display:none;">Cerrar sesión</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="footer-inner">
+            <span>WhatsApp Tracking Assistant v0.1.0</span>
+            <span class="separator">·</span>
+            <span>Paraguay</span>
+        </div>
+    </footer>
+
+    <script>
+        const TOKEN_KEY = 'wta_token';
+
+        function getToken() {
+            return localStorage.getItem(TOKEN_KEY);
+        }
+
+        function setToken(token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        }
+
+        function clearToken() {
+            localStorage.removeItem(TOKEN_KEY);
+        }
+
+        function authHeaders() {
+            const t = getToken();
+            return t ? { 'Authorization': 'Bearer ' + t } : {};
+        }
+
+        function requireAuth() {
+            if (!getToken()) {
+                window.location.href = '/login';
+                return false;
+            }
+            return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn && getToken()) {
+                logoutBtn.style.display = 'inline-block';
+                logoutBtn.addEventListener('click', function() {
+                    clearToken();
+                    window.location.href = '/login';
+                });
+
+                fetch('/me', { headers: authHeaders() })
+                    .then(r => r.ok ? r.json() : Promise.reject())
+                    .then(data => {
+                        const el = document.getElementById('storeName');
+                        if (el && data.email) el.textContent = data.email;
+                    })
+                    .catch(() => {});
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

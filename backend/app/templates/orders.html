@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de órdenes{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <div class="panel-header">
+        <h1>Órdenes</h1>
+        <div class="panel-filters">
+            <select id="filterStatus" class="form-select">
+                <option value="">Estado logístico</option>
+                <option value="pending_tracking">Pendiente tracking</option>
+                <option value="in_transit">En tránsito</option>
+                <option value="delivered">Entregado</option>
+            </select>
+            <select id="filterNotification" class="form-select">
+                <option value="">Estado notificación</option>
+                <option value="sent">Enviado</option>
+                <option value="failed">Fallido</option>
+                <option value="pending">Pendiente</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="loading-state" id="loadingState">
+        <div class="spinner"></div>
+        <p>Cargando órdenes...</p>
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <h2>Sin órdenes todavía</h2>
+        <p>Las órdenes aparecerán aquí cuando se reciban desde tu tienda.</p>
+    </div>
+
+    <div class="table-wrapper" id="tableWrapper" style="display:none;">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th># Orden</th>
+                    <th>Estado</th>
+                    <th>Notificación</th>
+                    <th>Último template</th>
+                    <th>Mensaje</th>
+                    <th>Última notif.</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody id="ordersBody"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination" id="pagination" style="display:none;">
+        <button class="btn btn-sm btn-outline" id="prevPage" disabled>← Anterior</button>
+        <span class="page-info" id="pageInfo"></span>
+        <button class="btn btn-sm btn-outline" id="nextPage">Siguiente →</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    if (!requireAuth()) return;
+
+    let currentPage = 1;
+    const pageSize = 20;
+
+    const body = document.getElementById('ordersBody');
+    const tableW = document.getElementById('tableWrapper');
+    const emptyS = document.getElementById('emptyState');
+    const loadS = document.getElementById('loadingState');
+    const pagDiv = document.getElementById('pagination');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevPage');
+    const nextBtn = document.getElementById('nextPage');
+    const filterSt = document.getElementById('filterStatus');
+    const filterNt = document.getElementById('filterNotification');
+
+    function statusBadge(status) {
+        const map = {
+            'in_transit': ['En tránsito', 'badge-warning'],
+            'delivered': ['Entregado', 'badge-success'],
+            'pending_tracking': ['Pendiente', 'badge-muted'],
+            'ready_for_polling': ['Listo', 'badge-muted'],
+            'notification_failed': ['Fallo', 'badge-error'],
+            'invalid_phone': ['Tel. inválido', 'badge-error'],
+        };
+        const [label, cls] = map[status] || [status || '—', 'badge-muted'];
+        return '<span class="badge ' + cls + '">' + label + '</span>';
+    }
+
+    function notifBadge(status) {
+        const map = {
+            'sent': ['Enviado', 'badge-success'],
+            'failed': ['Fallido', 'badge-error'],
+            'pending': ['Pendiente', 'badge-muted'],
+            'retrying': ['Reintentando', 'badge-warning'],
+        };
+        const [label, cls] = map[status] || [status || '—', 'badge-muted'];
+        return '<span class="badge ' + cls + '">' + label + '</span>';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '—';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    async function loadOrders() {
+        loadS.style.display = 'flex';
+        tableW.style.display = 'none';
+        emptyS.style.display = 'none';
+        pagDiv.style.display = 'none';
+
+        let url = '/orders?page=' + currentPage + '&page_size=' + pageSize;
+        if (filterSt.value) url += '&status=' + filterSt.value;
+        if (filterNt.value) url += '&notification_status=' + filterNt.value;
+
+        try {
+            const resp = await fetch(url, { headers: authHeaders() });
+            if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
+            const data = await resp.json();
+
+            loadS.style.display = 'none';
+
+            if (data.total === 0) {
+                emptyS.style.display = 'flex';
+                return;
+            }
+
+            body.innerHTML = '';
+            data.items.forEach(function(o) {
+                const tr = document.createElement('tr');
+                if (o.error) tr.classList.add('row-error');
+                tr.innerHTML =
+                    '<td class="col-id">' + escapeHtml(String(o.order_id)) + '</td>' +
+                    '<td>' + statusBadge(o.status) + '</td>' +
+                    '<td>' + notifBadge(o.notification_status) + '</td>' +
+                    '<td class="col-template">' + escapeHtml(o.last_template_name) + '</td>' +
+                    '<td class="col-preview">' +
+                        (o.last_message_preview
+                            ? '<span class="tooltip-wrap">' + escapeHtml(o.last_message_preview) + '</span>'
+                            : '—') +
+                    '</td>' +
+                    '<td class="col-date">' + (o.last_notification_at ? escapeHtml(o.last_notification_at.substring(0,16)) : '—') + '</td>' +
+                    '<td class="col-error">' +
+                        (o.error
+                            ? '<span class="badge badge-error error-detail" title="' + escapeHtml(o.error) + '">Error</span>'
+                            : '—') +
+                    '</td>';
+                body.appendChild(tr);
+            });
+
+            tableW.style.display = 'block';
+
+            const totalPages = Math.ceil(data.total / pageSize);
+            pageInfo.textContent = 'Página ' + currentPage + ' de ' + totalPages + ' (' + data.total + ' órdenes)';
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+            pagDiv.style.display = 'flex';
+
+        } catch (err) {
+            loadS.style.display = 'none';
+            emptyS.querySelector('h2').textContent = 'Error al cargar';
+            emptyS.querySelector('p').textContent = 'No se pudieron cargar las órdenes. Intentá de nuevo.';
+            emptyS.style.display = 'flex';
+        }
+    }
+
+    prevBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--; loadOrders(); } });
+    nextBtn.addEventListener('click', function() { currentPage++; loadOrders(); });
+    filterSt.addEventListener('change', function() { currentPage = 1; loadOrders(); });
+    filterNt.addEventListener('change', function() { currentPage = 1; loadOrders(); });
+
+    loadOrders();
+})();
+</script>
+{% endblock %}
