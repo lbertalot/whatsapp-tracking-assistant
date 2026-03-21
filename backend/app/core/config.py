@@ -20,5 +20,12 @@ class Settings(BaseSettings):
 
     WEBHOOK_SECRET_TOKEN: str = "change-me"
 
+    TIENDANUBE_APP_ID: str = ""
+    TIENDANUBE_CLIENT_SECRET: str = ""
+    TIENDANUBE_AUTH_URL: str = "https://www.tiendanube.com/apps/{app_id}/authorize"
+    TIENDANUBE_TOKEN_URL: str = "https://www.tiendanube.com/apps/authorize/token"
+    TIENDANUBE_API_URL: str = "https://api.tiendanube.com/v1"
+    APP_BASE_URL: str = "http://localhost:8000"
+
 
 settings = Settings()
