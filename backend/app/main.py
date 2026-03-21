@@ -11,6 +11,7 @@ from backend.app.api.auth import router as auth_router
 from backend.app.api.orders import router as orders_router
 from backend.app.api.integrations import router as integrations_router
 from backend.app.api.webhooks_tn import router as webhooks_tn_router
+from backend.app.api.settings import router as settings_router
 from backend.app.api.ui import router as ui_router
 
 logging.basicConfig(
@@ -33,4 +34,5 @@ app.include_router(auth_router, tags=["auth"])
 app.include_router(orders_router, tags=["webhooks"])
 app.include_router(integrations_router, tags=["integrations"])
 app.include_router(webhooks_tn_router, tags=["webhooks-tn"])
+app.include_router(settings_router, tags=["settings"])
 app.include_router(ui_router, tags=["ui"])

@@ -15,8 +15,10 @@
                 <span class="brand-name">WTA</span>
             </a>
             <nav class="header-nav" id="headerNav">
+                <a href="/panel" id="navOrders" style="display:none;">Ordenes</a>
+                <a href="/settings" id="navSettings" style="display:none;">Configuracion</a>
                 <span class="store-name" id="storeName"></span>
-                <button class="btn btn-sm btn-outline" id="logoutBtn" style="display:none;">Cerrar sesión</button>
+                <button class="btn btn-sm btn-outline" id="logoutBtn" style="display:none;">Cerrar sesion</button>
             </nav>
         </div>
     </header>
@@ -62,21 +64,31 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const logoutBtn = document.getElementById('logoutBtn');
+            var logoutBtn = document.getElementById('logoutBtn');
+            var navOrders = document.getElementById('navOrders');
+            var navSettings = document.getElementById('navSettings');
+
             if (logoutBtn && getToken()) {
                 logoutBtn.style.display = 'inline-block';
+                if (navOrders) navOrders.style.display = 'inline-block';
+                if (navSettings) navSettings.style.display = 'inline-block';
+
+                var path = window.location.pathname;
+                if (path === '/panel' && navOrders) navOrders.classList.add('nav-active');
+                if (path === '/settings' && navSettings) navSettings.classList.add('nav-active');
+
                 logoutBtn.addEventListener('click', function() {
                     clearToken();
                     window.location.href = '/login';
                 });
 
                 fetch('/me', { headers: authHeaders() })
-                    .then(r => r.ok ? r.json() : Promise.reject())
-                    .then(data => {
-                        const el = document.getElementById('storeName');
+                    .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+                    .then(function(data) {
+                        var el = document.getElementById('storeName');
                         if (el) el.textContent = data.store_name || data.email;
                     })
-                    .catch(() => {});
+                    .catch(function() {});
             }
         });
     </script>

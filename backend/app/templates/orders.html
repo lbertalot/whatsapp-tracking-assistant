@@ -1,23 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Panel de órdenes{% endblock %}
+{% block title %}Panel de ordenes{% endblock %}
 
 {% block content %}
 <div class="panel-container">
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-value" id="statTotal">--</div>
+            <div class="stat-label">Total ordenes</div>
+        </div>
+        <div class="stat-card stat-card-green">
+            <div class="stat-value" id="statNotified">--</div>
+            <div class="stat-label">Notificadas</div>
+            <div class="stat-pct" id="statNotifiedPct"></div>
+        </div>
+        <div class="stat-card stat-card-red">
+            <div class="stat-value" id="statErrors">--</div>
+            <div class="stat-label">Errores WhatsApp</div>
+            <div class="stat-pct" id="statErrorsPct"></div>
+        </div>
+        <div class="stat-card stat-card-orange">
+            <div class="stat-value" id="statInvalid">--</div>
+            <div class="stat-label">Tel. invalidos</div>
+            <div class="stat-pct" id="statInvalidPct"></div>
+        </div>
+    </div>
+
     <div class="panel-header">
-        <h1>Órdenes</h1>
+        <h2>Ordenes</h2>
         <div class="panel-filters">
             <select id="filterStatus" class="form-select">
-                <option value="">Estado logístico</option>
+                <option value="">Estado logistico</option>
                 <option value="pending_tracking">Pendiente tracking</option>
                 <option value="ready_for_polling">Listo para consulta</option>
-                <option value="in_transit">En tránsito</option>
+                <option value="in_transit">En transito</option>
                 <option value="delivered">Entregado</option>
-                <option value="notification_failed">Fallo notificación</option>
-                <option value="invalid_phone">Tel. inválido</option>
+                <option value="notification_failed">Fallo notificacion</option>
+                <option value="invalid_phone">Tel. invalido</option>
             </select>
             <select id="filterNotification" class="form-select">
-                <option value="">Estado notificación</option>
+                <option value="">Estado notificacion</option>
                 <option value="sent">Enviado</option>
                 <option value="failed">Fallido</option>
                 <option value="pending">Pendiente</option>
@@ -28,13 +50,13 @@
 
     <div class="loading-state" id="loadingState">
         <div class="spinner"></div>
-        <p>Cargando órdenes...</p>
+        <p>Cargando ordenes...</p>
     </div>
 
     <div class="empty-state" id="emptyState" style="display:none;">
         <div class="empty-icon">📭</div>
-        <h2>Sin órdenes todavía</h2>
-        <p>Las órdenes aparecerán aquí cuando se reciban desde tu tienda.</p>
+        <h2>Sin ordenes todavia</h2>
+        <p>Las ordenes apareceran aqui cuando se reciban desde tu tienda.</p>
     </div>
 
     <div class="table-wrapper" id="tableWrapper" style="display:none;">
@@ -44,10 +66,9 @@
                     <th># Orden</th>
                     <th>Cliente</th>
                     <th>Estado</th>
-                    <th>Notificación</th>
-                    <th>Template</th>
-                    <th>Mensaje</th>
-                    <th>Última notif.</th>
+                    <th>Notificacion</th>
+                    <th>Mensaje enviado</th>
+                    <th>Fecha</th>
                     <th>Error</th>
                 </tr>
             </thead>
@@ -82,35 +103,98 @@
     const filterSt = document.getElementById('filterStatus');
     const filterNt = document.getElementById('filterNotification');
 
+    var ERROR_MAP = {
+        '131047': 'El usuario no ha interactuado con tu numero en las ultimas 24 horas.',
+        '131026': 'El mensaje no pudo ser entregado. El numero puede no tener WhatsApp.',
+        '131049': 'El numero de telefono no es valido para WhatsApp.',
+        '131051': 'El template no esta aprobado o no existe.',
+        '130472': 'Se excedio el limite de mensajes por minuto.',
+        '131021': 'El destinatario no es un usuario de WhatsApp valido.',
+        'mock_failure': 'Fallo simulado en modo de prueba.',
+    };
+
+    function friendlyError(rawError) {
+        if (!rawError) return null;
+        for (var code in ERROR_MAP) {
+            if (rawError.indexOf(code) !== -1) return ERROR_MAP[code];
+        }
+        return rawError;
+    }
+
     function statusBadge(status) {
-        const map = {
-            'in_transit': ['En tránsito', 'badge-warning'],
+        var map = {
+            'in_transit': ['En transito', 'badge-warning'],
             'delivered': ['Entregado', 'badge-success'],
             'pending_tracking': ['Pendiente', 'badge-muted'],
             'ready_for_polling': ['Listo', 'badge-muted'],
             'notification_failed': ['Fallo', 'badge-error'],
-            'invalid_phone': ['Tel. inválido', 'badge-error'],
+            'invalid_phone': ['Tel. invalido', 'badge-error'],
         };
-        const [label, cls] = map[status] || [status || '—', 'badge-muted'];
-        return '<span class="badge ' + cls + '">' + label + '</span>';
+        var entry = map[status] || [status || '—', 'badge-muted'];
+        return '<span class="badge ' + entry[1] + '">' + entry[0] + '</span>';
     }
 
     function notifBadge(status) {
-        const map = {
+        var map = {
             'sent': ['Enviado', 'badge-success'],
             'failed': ['Fallido', 'badge-error'],
             'pending': ['Pendiente', 'badge-muted'],
             'retrying': ['Reintentando', 'badge-warning'],
         };
-        const [label, cls] = map[status] || [status || '—', 'badge-muted'];
-        return '<span class="badge ' + cls + '">' + label + '</span>';
+        var entry = map[status] || [status || '—', 'badge-muted'];
+        return '<span class="badge ' + entry[1] + '">' + entry[0] + '</span>';
     }
 
     function escapeHtml(str) {
         if (!str) return '—';
-        const d = document.createElement('div');
+        var d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
+    }
+
+    function messageBubble(o) {
+        if (o.invalid_phone) {
+            return '<div class="msg-bubble msg-bubble-warn">' +
+                '<span class="msg-meta">Tel. invalido</span>' +
+                '<span class="msg-text">No se puede enviar: telefono invalido</span></div>';
+        }
+        if (!o.last_message_preview && !o.last_template_name) return '<span class="text-muted">—</span>';
+
+        var cls = o.notification_status === 'sent' ? 'msg-bubble-sent'
+                : o.notification_status === 'failed' ? 'msg-bubble-failed'
+                : 'msg-bubble-pending';
+
+        var tpl = o.last_template_name ? '<span class="msg-meta">' + escapeHtml(o.last_template_name) + '</span>' : '';
+        var preview = o.last_message_preview
+            ? '<span class="msg-text">' + escapeHtml(o.last_message_preview) + '</span>'
+            : '';
+        var check = o.notification_status === 'sent' ? ' <span class="msg-check">✓✓</span>' : '';
+
+        return '<div class="msg-bubble ' + cls + '">' + tpl + preview + check + '</div>';
+    }
+
+    function errorCell(o) {
+        if (!o.error) return '<span class="text-muted">—</span>';
+        var friendly = friendlyError(o.error);
+        return '<div class="error-block">' +
+            '<span class="badge badge-error">' + escapeHtml(o.error.substring(0, 30)) + '</span>' +
+            '<div class="error-friendly">' + escapeHtml(friendly) + '</div>' +
+        '</div>';
+    }
+
+    async function loadStats() {
+        try {
+            var resp = await fetch('/panel/stats', { headers: authHeaders() });
+            if (!resp.ok) return;
+            var s = await resp.json();
+            document.getElementById('statTotal').textContent = s.total_orders;
+            document.getElementById('statNotified').textContent = s.orders_notified;
+            document.getElementById('statNotifiedPct').textContent = s.pct_notified + '%';
+            document.getElementById('statErrors').textContent = s.orders_errors;
+            document.getElementById('statErrorsPct').textContent = s.pct_errors + '%';
+            document.getElementById('statInvalid').textContent = s.orders_invalid_phone;
+            document.getElementById('statInvalidPct').textContent = s.pct_invalid_phone + '%';
+        } catch(e) {}
     }
 
     async function loadOrders() {
@@ -119,14 +203,14 @@
         emptyS.style.display = 'none';
         pagDiv.style.display = 'none';
 
-        let url = '/orders?page=' + currentPage + '&page_size=' + pageSize;
+        var url = '/orders?page=' + currentPage + '&page_size=' + pageSize;
         if (filterSt.value) url += '&status=' + filterSt.value;
         if (filterNt.value) url += '&notification_status=' + filterNt.value;
 
         try {
-            const resp = await fetch(url, { headers: authHeaders() });
+            var resp = await fetch(url, { headers: authHeaders() });
             if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
-            const data = await resp.json();
+            var data = await resp.json();
 
             loadS.style.display = 'none';
 
@@ -137,42 +221,33 @@
 
             body.innerHTML = '';
             data.items.forEach(function(o) {
-                const tr = document.createElement('tr');
+                var tr = document.createElement('tr');
                 if (o.error) tr.classList.add('row-error');
                 if (o.invalid_phone) tr.classList.add('row-warning');
 
                 var phoneIcon = o.invalid_phone
-                    ? ' <span class="badge badge-error badge-sm" title="Teléfono inválido">Tel. inválido</span>'
+                    ? ' <span class="badge badge-error badge-sm" title="Telefono invalido">Tel.</span>'
                     : '';
 
                 var notifCell = o.invalid_phone
-                    ? '<span class="badge badge-error">Tel. inválido</span>'
+                    ? '<span class="badge badge-error">Tel. invalido</span>'
                     : notifBadge(o.notification_status);
-
-                var errorCell = o.error
-                    ? '<span class="badge badge-error error-detail" title="' + escapeHtml(o.error) + '">' + escapeHtml(o.error) + '</span>'
-                    : '—';
 
                 tr.innerHTML =
                     '<td class="col-id">' + escapeHtml(o.external_id || String(o.order_id)) + '</td>' +
                     '<td class="col-customer">' + escapeHtml(o.customer_name) + phoneIcon + '</td>' +
                     '<td>' + statusBadge(o.status) + '</td>' +
                     '<td>' + notifCell + '</td>' +
-                    '<td class="col-template">' + escapeHtml(o.last_template_name) + '</td>' +
-                    '<td class="col-preview">' +
-                        (o.last_message_preview
-                            ? '<span class="tooltip-wrap">' + escapeHtml(o.last_message_preview) + '</span>'
-                            : '—') +
-                    '</td>' +
+                    '<td class="col-message">' + messageBubble(o) + '</td>' +
                     '<td class="col-date">' + (o.last_notification_at ? escapeHtml(o.last_notification_at.substring(0,16)) : '—') + '</td>' +
-                    '<td class="col-error">' + errorCell + '</td>';
+                    '<td class="col-error">' + errorCell(o) + '</td>';
                 body.appendChild(tr);
             });
 
             tableW.style.display = 'block';
 
-            const totalPages = Math.ceil(data.total / pageSize);
-            pageInfo.textContent = 'Página ' + currentPage + ' de ' + totalPages + ' (' + data.total + ' órdenes)';
+            var totalPages = Math.ceil(data.total / pageSize);
+            pageInfo.textContent = 'Pagina ' + currentPage + ' de ' + totalPages + ' (' + data.total + ' ordenes)';
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = currentPage >= totalPages;
             pagDiv.style.display = 'flex';
@@ -180,7 +255,7 @@
         } catch (err) {
             loadS.style.display = 'none';
             emptyS.querySelector('h2').textContent = 'Error al cargar';
-            emptyS.querySelector('p').textContent = 'No se pudieron cargar las órdenes. Intentá de nuevo.';
+            emptyS.querySelector('p').textContent = 'No se pudieron cargar las ordenes. Intenta de nuevo.';
             emptyS.style.display = 'flex';
         }
     }
@@ -190,6 +265,7 @@
     filterSt.addEventListener('change', function() { currentPage = 1; loadOrders(); });
     filterNt.addEventListener('change', function() { currentPage = 1; loadOrders(); });
 
+    loadStats();
     loadOrders();
 })();
 </script>

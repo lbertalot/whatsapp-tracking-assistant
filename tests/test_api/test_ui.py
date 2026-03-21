@@ -48,7 +48,7 @@ class TestPanelPage:
     def test_panel_has_empty_state(self, client):
         response = client.get("/panel")
         assert "emptyState" in response.text
-        assert "Sin órdenes" in response.text
+        assert "Sin ordenes" in response.text
 
     def test_panel_has_loading_state(self, client):
         response = client.get("/panel")
@@ -58,7 +58,7 @@ class TestPanelPage:
     def test_panel_has_logout(self, client):
         response = client.get("/panel")
         assert "logoutBtn" in response.text
-        assert "Cerrar sesión" in response.text
+        assert "Cerrar sesion" in response.text
 
     def test_panel_has_branding(self, client):
         response = client.get("/panel")
@@ -73,6 +73,50 @@ class TestBadges:
         assert "badge-success" in html or "badge-success" in response.text
         assert "badge-warning" in html or "badge-warning" in response.text
         assert "badge-error" in html or "badge-error" in response.text
+
+
+class TestSettingsPage:
+    def test_settings_page_renders(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_settings_has_template_inputs(self, client):
+        response = client.get("/settings")
+        html = response.text
+        assert "tplInTransit" in html
+        assert "tplDelivered" in html
+
+    def test_settings_has_save_button(self, client):
+        response = client.get("/settings")
+        assert "btnSave" in response.text
+
+    def test_settings_has_system_info(self, client):
+        response = client.get("/settings")
+        assert "infoWeraha" in response.text
+        assert "infoWhatsapp" in response.text
+
+
+class TestDashboardStats:
+    def test_panel_has_stats_grid(self, client):
+        response = client.get("/panel")
+        assert "stats-grid" in response.text
+        assert "statTotal" in response.text
+        assert "statNotified" in response.text
+        assert "statErrors" in response.text
+        assert "statInvalid" in response.text
+
+
+class TestNavigation:
+    def test_panel_has_nav_links(self, client):
+        response = client.get("/panel")
+        assert "navOrders" in response.text
+        assert "navSettings" in response.text
+
+    def test_settings_has_nav_links(self, client):
+        response = client.get("/settings")
+        assert "navOrders" in response.text
+        assert "navSettings" in response.text
 
 
 class TestStaticAssets:

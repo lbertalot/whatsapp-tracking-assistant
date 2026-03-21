@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Configuracion{% endblock %}
+
+{% block content %}
+<div class="panel-container settings-container">
+    <div class="panel-header">
+        <h2>Configuracion de templates</h2>
+    </div>
+
+    <div id="settingsAlert" style="display:none;"></div>
+
+    <div class="loading-state" id="loadingState">
+        <div class="spinner"></div>
+        <p>Cargando configuracion...</p>
+    </div>
+
+    <div id="settingsContent" style="display:none;">
+        <div class="settings-card">
+            <h3>Templates de WhatsApp por evento</h3>
+            <p>Selecciona el nombre del template aprobado en Meta para cada tipo de notificacion.
+               Los templates se crean y aprueban en Meta Business Manager.</p>
+
+            <div class="form-group">
+                <label for="tplInTransit">Template para "En transito"</label>
+                <input type="text" id="tplInTransit" placeholder="ej: shipping_in_transit_v1">
+                <div class="settings-hint">Se envia cuando el paquete entra en transito.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="tplDelivered">Template para "Entregado"</label>
+                <input type="text" id="tplDelivered" placeholder="ej: shipping_delivered_v1">
+                <div class="settings-hint">Se envia cuando el paquete fue entregado al cliente.</div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn btn-primary" id="btnSave">Guardar cambios</button>
+                <span class="text-muted" id="saveStatus" style="align-self:center;font-size:0.8125rem;"></span>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Estado del sistema</h3>
+            <p>Informacion de tu integracion actual.</p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div>
+                    <div class="settings-hint">Weraha habilitado</div>
+                    <div id="infoWeraha" style="font-weight:600;">--</div>
+                </div>
+                <div>
+                    <div class="settings-hint">WhatsApp habilitado</div>
+                    <div id="infoWhatsapp" style="font-weight:600;">--</div>
+                </div>
+                <div>
+                    <div class="settings-hint">Estado onboarding</div>
+                    <div id="infoOnboarding" style="font-weight:600;">--</div>
+                </div>
+                <div>
+                    <div class="settings-hint">WhatsApp Phone ID</div>
+                    <div id="infoPhoneId" style="font-weight:600;font-size:0.8125rem;">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    if (!requireAuth()) return;
+
+    var loadS = document.getElementById('loadingState');
+    var content = document.getElementById('settingsContent');
+    var alertEl = document.getElementById('settingsAlert');
+    var tplIn = document.getElementById('tplInTransit');
+    var tplDel = document.getElementById('tplDelivered');
+    var btnSave = document.getElementById('btnSave');
+    var saveStatus = document.getElementById('saveStatus');
+
+    function showAlert(msg, type) {
+        alertEl.className = 'alert alert-' + type;
+        alertEl.textContent = msg;
+        alertEl.style.display = 'block';
+        setTimeout(function() { alertEl.style.display = 'none'; }, 5000);
+    }
+
+    async function loadSettings() {
+        loadS.style.display = 'flex';
+        content.style.display = 'none';
+
+        try {
+            var resp = await fetch('/api/settings', { headers: authHeaders() });
+            if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
+            if (!resp.ok) {
+                loadS.style.display = 'none';
+                showAlert('No se encontro configuracion para esta tienda.', 'error');
+                return;
+            }
+
+            var s = await resp.json();
+            tplIn.value = s.template_in_transit || '';
+            tplDel.value = s.template_delivered || '';
+
+            document.getElementById('infoWeraha').textContent = s.weraha_enabled ? 'Si' : 'No';
+            document.getElementById('infoWhatsapp').textContent = s.whatsapp_enabled ? 'Si' : 'No';
+            document.getElementById('infoOnboarding').textContent = s.onboarding_status || '—';
+            document.getElementById('infoPhoneId').textContent = s.whatsapp_phone_number_id || '—';
+
+            loadS.style.display = 'none';
+            content.style.display = 'block';
+        } catch(e) {
+            loadS.style.display = 'none';
+            showAlert('Error al cargar la configuracion.', 'error');
+        }
+    }
+
+    btnSave.addEventListener('click', async function() {
+        btnSave.disabled = true;
+        saveStatus.textContent = 'Guardando...';
+
+        try {
+            var resp = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+                body: JSON.stringify({
+                    template_in_transit: tplIn.value || null,
+                    template_delivered: tplDel.value || null,
+                }),
+            });
+
+            if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
+
+            if (resp.ok) {
+                saveStatus.textContent = '';
+                showAlert('Configuracion guardada exitosamente.', 'success');
+            } else {
+                var err = await resp.json();
+                saveStatus.textContent = '';
+                showAlert('Error: ' + (err.detail || 'No se pudo guardar.'), 'error');
+            }
+        } catch(e) {
+            saveStatus.textContent = '';
+            showAlert('Error de red. Intenta de nuevo.', 'error');
+        } finally {
+            btnSave.disabled = false;
+        }
+    });
+
+    loadSettings();
+})();
+</script>
+{% endblock %}

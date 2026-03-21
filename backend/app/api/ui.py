@@ -23,3 +23,8 @@ def login_page(request: Request):
 @router.get("/panel", response_class=HTMLResponse)
 def panel_page(request: Request):
     return templates.TemplateResponse(request, "orders.html")
+
+
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request):
+    return templates.TemplateResponse(request, "settings.html")
