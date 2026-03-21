@@ -63,6 +63,10 @@ def worker_data(engine):
 
     yield session, active_store, inactive_store, eligible, no_tracking, inactive_order, already_delivered
 
+    from backend.app.models.notification import NotificationAttempt
+    session.query(NotificationAttempt).filter(
+        NotificationAttempt.store_id.in_([active_store.id, inactive_store.id])
+    ).delete(synchronize_session=False)
     session.query(Order).filter(
         Order.store_id.in_([active_store.id, inactive_store.id])
     ).delete(synchronize_session=False)

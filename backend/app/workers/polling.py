@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreSettings
+from backend.app.services.notification import NotificationEngine
 from backend.app.services.state_mapper import map_raw_status
 from backend.app.services.weraha import WerahaAdapter
 
 logger = logging.getLogger(__name__)
 
 weraha_adapter = WerahaAdapter()
+notification_engine = NotificationEngine()
 
 TERMINAL_STATUSES = {"delivered", "notification_failed"}
 POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
@@ -49,14 +51,18 @@ def process_order(db: Session, order: Order) -> None:
         order.last_checked_at = datetime.utcnow()
 
         if mapped and mapped != order.current_status:
+            old_status = order.current_status
             order.current_status = mapped
             order.last_status_change_at = datetime.utcnow()
-            logger.info(
-                "Order %s status updated: %s -> %s",
-                order.id, order.current_status, mapped,
-            )
+            db.commit()
 
-        db.commit()
+            logger.info("Order %s status: %s -> %s", order.id, old_status, mapped)
+
+            notif_result = notification_engine.evaluate_and_notify(db, order)
+            if notif_result.get("sent"):
+                logger.info("Order %s notified: %s", order.id, notif_result["event_type"])
+        else:
+            db.commit()
 
     except Exception:
         logger.exception("Error processing order %s", order.id)
