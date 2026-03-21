@@ -4,14 +4,21 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.core.dependencies import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.order import Order
 from backend.app.models.store import Store
-from backend.app.schemas.order import WebhookOrderPayload, WebhookOrderResponse
+from backend.app.models.user import StoreUser
+from backend.app.schemas.order import (
+    OrderListItem,
+    OrderListResponse,
+    WebhookOrderPayload,
+    WebhookOrderResponse,
+)
 from backend.app.services.phone import normalize_phone
 
 logger = logging.getLogger(__name__)
@@ -28,6 +35,46 @@ def _verify_signature(body_bytes: bytes, signature: Optional[str]) -> bool:
         hashlib.sha256,
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
+
+
+@router.get("/orders", response_model=OrderListResponse)
+def list_orders(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    notification_status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: StoreUser = Depends(get_current_user),
+):
+    query = db.query(Order).filter(Order.store_id == current_user.store_id)
+
+    if status_filter:
+        query = query.filter(Order.current_status == status_filter)
+    if notification_status:
+        query = query.filter(Order.notification_status == notification_status)
+
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    return OrderListResponse(
+        items=[
+            OrderListItem(
+                order_id=o.id,
+                store_id=o.store_id,
+                status=o.current_status,
+                notification_status=o.notification_status,
+                last_message_type=o.last_message_type,
+                last_template_name=o.last_template_name,
+                last_message_preview=o.last_message_preview,
+                last_notification_at=str(o.last_notification_at) if o.last_notification_at else None,
+                error=o.notification_error,
+            )
+            for o in items
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post("/webhooks/orders", response_model=WebhookOrderResponse)
