@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from backend.app.db.base import Base
+import backend.app.models  # noqa: F401 — registers all models with Base.metadata
 from backend.app.db.session import get_db
 from backend.app.main import app
 
