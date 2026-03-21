@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"
 
-    WHATSAPP_API_URL: str = "https://graph.facebook.com/v21.0"
+    WHATSAPP_API_URL: str = "https://graph.facebook.com/v25.0"
     WHATSAPP_ACCESS_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_BUSINESS_ACCOUNT_ID: str = ""
