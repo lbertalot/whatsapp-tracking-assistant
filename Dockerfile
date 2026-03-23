@@ -1,5 +1,5 @@
 # WhatsApp Tracking Assistant — imagen única para web + worker (paridad Heroku)
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
