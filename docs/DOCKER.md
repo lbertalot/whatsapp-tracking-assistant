@@ -114,6 +114,7 @@ docker compose down -v
 - **El worker arranca antes que las migraciones:** el `worker` depende de `web` con `condition: service_healthy`; `web` corre Alembic antes de exponer `/health`.
 - **Error de conexión a Postgres:** esperá a que el healthcheck de `postgres` esté en verde (`docker compose ps`).
 - **Sin credenciales de Meta:** con `APP_ENV=development` y sin `WERAHA_API_URL` HTTP, el worker usa mocks (comportamiento alineado al desarrollo local documentado en el código).
+- **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/ADR.md` (ADR-005).
 
 ## Imagen
 

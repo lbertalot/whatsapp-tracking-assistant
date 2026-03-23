@@ -23,7 +23,6 @@ class TestWhatsAppReal:
             "contacts": [{"input": "+595981123456", "wa_id": "595981123456"}],
             "messages": [{"id": "wamid.real_abc123"}],
         }
-        mock_resp.raise_for_status = MagicMock()
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
             result = svc.send_template_message(
@@ -38,9 +37,10 @@ class TestWhatsAppReal:
         svc = self._service()
         mock_resp = MagicMock()
         mock_resp.status_code = 400
-        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Bad Request", request=MagicMock(), response=mock_resp
-        )
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {
+            "error": {"code": 131047, "message": "Re-engagement message", "error_subcode": 2494010}
+        }
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
             result = svc.send_template_message(
@@ -49,15 +49,15 @@ class TestWhatsAppReal:
             )
 
         assert result["success"] is False
-        assert "error" in result
+        assert "131047" in str(result.get("error"))
+        assert "Re-engagement" in result.get("error_message", "")
 
     def test_real_rate_limit(self):
         svc = self._service()
         mock_resp = MagicMock()
         mock_resp.status_code = 429
-        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Rate limited", request=MagicMock(), response=mock_resp
-        )
+        mock_resp.headers = {"Retry-After": "60"}
+        mock_resp.json.return_value = {"error": {"code": 4, "message": "Rate limit"}}
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
             result = svc.send_template_message(
@@ -66,14 +66,14 @@ class TestWhatsAppReal:
             )
 
         assert result["success"] is False
+        assert "Retry-After" in result.get("error_message", "")
 
     def test_real_invalid_phone(self):
         svc = self._service()
         mock_resp = MagicMock()
         mock_resp.status_code = 400
-        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Invalid phone", request=MagicMock(), response=mock_resp
-        )
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {"error": {"code": 100, "message": "Invalid phone"}}
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
             result = svc.send_template_message(
@@ -92,7 +92,6 @@ class TestWhatsAppReal:
             mock_r = MagicMock()
             mock_r.status_code = 200
             mock_r.json.return_value = {"messages": [{"id": "wamid.test"}]}
-            mock_r.raise_for_status = MagicMock()
             return mock_r
 
         with patch("backend.app.services.whatsapp.httpx.post", side_effect=capture_post):
@@ -108,13 +107,36 @@ class TestWhatsAppReal:
         assert body["type"] == "template"
         assert body["template"]["name"] == "shipping_in_transit_v1"
         assert body["template"]["language"]["code"] == "es"
+        assert "components" not in body["template"]
+
+    def test_template_includes_body_components_when_params(self):
+        svc = self._service()
+        captured_kwargs = {}
+
+        def capture_post(url, **kwargs):
+            captured_kwargs.update(kwargs)
+            mock_r = MagicMock()
+            mock_r.status_code = 200
+            mock_r.json.return_value = {"messages": [{"id": "wamid.x"}]}
+            return mock_r
+
+        with patch("backend.app.services.whatsapp.httpx.post", side_effect=capture_post):
+            svc.send_template_message(
+                to="+595981123456",
+                template_name="shipping_in_transit_v1",
+                params={"order_id": "TN-1001"},
+            )
+
+        tpl = captured_kwargs["json"]["template"]
+        assert "components" in tpl
+        assert tpl["components"][0]["type"] == "body"
+        assert tpl["components"][0]["parameters"][0]["text"] == "TN-1001"
 
     def test_whatsapp_test_message(self):
         svc = self._service()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"messages": [{"id": "wamid.test_msg"}]}
-        mock_resp.raise_for_status = MagicMock()
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
             result = svc.send_template_message(

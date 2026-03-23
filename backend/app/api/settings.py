@@ -60,7 +60,7 @@ def get_settings(
     )
     if not settings:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settings not found")
-    return settings
+    return StoreSettingsResponse.from_store_settings(settings)
 
 
 @router.put("/api/settings", response_model=StoreSettingsResponse)
@@ -78,9 +78,16 @@ def update_settings(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settings not found")
 
     update_data = body.model_dump(exclude_unset=True)
+    if "whatsapp_access_token" in update_data:
+        tok = update_data.pop("whatsapp_access_token")
+        if tok == "":
+            settings.whatsapp_access_token = None
+        elif tok is not None:
+            settings.whatsapp_access_token = tok
+
     for key, value in update_data.items():
         setattr(settings, key, value)
 
     db.commit()
     db.refresh(settings)
-    return settings
+    return StoreSettingsResponse.from_store_settings(settings)

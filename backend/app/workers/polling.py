@@ -11,15 +11,14 @@ from backend.app.models.store import Store, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.state_mapper import map_raw_status
 from backend.app.services.weraha import WerahaAdapter
-from backend.app.services.whatsapp import WhatsAppService
 
 logger = logging.getLogger(__name__)
 
 _use_mock = settings.APP_ENV in ("testing", "development") and not settings.WERAHA_API_URL.startswith("http")
 
 weraha_adapter = WerahaAdapter()
-whatsapp_service = WhatsAppService(mock=_use_mock)
-notification_engine = NotificationEngine(whatsapp=whatsapp_service)
+# WhatsApp: credenciales por tienda (resolve_for_store) o fallback global según config
+notification_engine = NotificationEngine()
 
 TERMINAL_STATUSES = {"delivered", "notification_failed"}
 POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
@@ -93,9 +92,10 @@ if __name__ == "__main__":
     from backend.app.db.session import SessionLocal
 
     logger.info(
-        "Worker starting (mock=%s, interval=%ds)",
+        "Worker starting (weraha_mock=%s, interval=%ds, wa_global_fallback=%s)",
         _use_mock,
         settings.POLL_INTERVAL_SECONDS,
+        settings.WHATSAPP_ALLOW_GLOBAL_FALLBACK,
     )
 
     while True:

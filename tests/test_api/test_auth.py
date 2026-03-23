@@ -92,7 +92,7 @@ def test_me_invalid_token(client):
     assert response.status_code == 401
 
 
-def test_register_success(client):
+def test_register_success_snake_case(client):
     response = client.post(
         "/auth/register",
         json={
@@ -118,6 +118,20 @@ def test_register_success(client):
     assert body["role"] == "owner"
     assert body["tiendanube_user_id"] is None
     assert body["needs_tiendanube"] is True
+
+
+def test_register_success_camel_case_store_name(client):
+    """Compat: algunos frontends envían storeName en lugar de store_name."""
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "camelcase@example.com",
+            "password": "Secret123!",
+            "storeName": "Berta Shop",
+        },
+    )
+    assert response.status_code == 201
+    assert "access_token" in response.json()
 
 
 def test_register_duplicate_email(client):

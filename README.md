@@ -27,7 +27,7 @@ docker compose run --rm web python scripts/seed_demo_data.py
 # Cuenta nueva sin seed: abrí http://localhost:8000/register (MS-ONB02).
 ```
 
-Detalle: [docs/DOCKER.md](docs/DOCKER.md)
+Detalle: [docs/DOCKER.md](docs/DOCKER.md) · WhatsApp/Meta: [docs/WHATSAPP_META.md](docs/WHATSAPP_META.md)
 
 ### Opción B — Python en la máquina
 
