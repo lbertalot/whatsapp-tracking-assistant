@@ -8,6 +8,10 @@ class TestLoginPage:
         assert "text/html" in response.headers["content-type"]
         assert "loginForm" in response.text
 
+    def test_login_page_has_tiendanube_help_link(self, client):
+        response = client.get("/login")
+        assert "/ayuda/conectar-tiendanube" in response.text
+
     def test_login_page_has_form(self, client):
         response = client.get("/login")
         html = response.text
@@ -19,6 +23,26 @@ class TestLoginPage:
     def test_login_page_has_error_container(self, client):
         response = client.get("/login")
         assert "loginError" in response.text
+
+    def test_login_page_has_register_link(self, client):
+        response = client.get("/login")
+        assert "/register" in response.text
+
+
+class TestRegisterPage:
+    def test_register_page_renders(self, client):
+        response = client.get("/register")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "registerForm" in response.text
+
+    def test_register_page_has_fields(self, client):
+        response = client.get("/register")
+        html = response.text
+        assert 'action="/auth/register"' in html
+        assert 'id="storeName"' in html
+        assert 'type="email"' in html
+        assert 'type="password"' in html
 
 
 class TestPanelPage:
@@ -64,6 +88,10 @@ class TestPanelPage:
         response = client.get("/panel")
         assert "WTA" in response.text
         assert "brand" in response.text
+
+    def test_panel_footer_has_public_help_link(self, client):
+        response = client.get("/panel")
+        assert "/ayuda/conectar-tiendanube" in response.text
 
 
 class TestBadges:
@@ -117,6 +145,39 @@ class TestNavigation:
         response = client.get("/settings")
         assert "navOrders" in response.text
         assert "navSettings" in response.text
+
+
+class TestOnboardingPage:
+    def test_onboarding_renders(self, client):
+        response = client.get("/onboarding")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_onboarding_has_connect_cta(self, client):
+        response = client.get("/onboarding")
+        assert "btnConnect" in response.text
+        assert "Tiendanube" in response.text
+
+    def test_onboarding_has_step_by_step_and_copy_urls(self, client):
+        response = client.get("/onboarding")
+        html = response.text
+        assert "steps-row" in html
+        assert "txtOAuthCallback" in html
+        assert "txtWebhookUrl" in html
+        assert "/ayuda/conectar-tiendanube" in html
+
+
+class TestHelpTiendanubePage:
+    def test_help_page_renders_public(self, client):
+        response = client.get("/ayuda/conectar-tiendanube")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_help_page_has_steps_and_login_link(self, client):
+        response = client.get("/ayuda/conectar-tiendanube")
+        assert "Conectar tu tienda Tiendanube" in response.text
+        assert "/login" in response.text
+        assert "/register" in response.text
 
 
 class TestStaticAssets:

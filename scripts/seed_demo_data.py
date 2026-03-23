@@ -14,8 +14,9 @@ Variables de entorno (opcionales):
                           para enseñar métricas sin OAuth; no mezclar con OAuth a otra tienda TN.
   SEED_STORE_EXTERNAL_ID  En modo demo: default `demo-paraguay-tn`. En oauth_ready: vacío por defecto;
                           si lo seteás, fija ese user_id TN (staging/CI con tienda conocida).
-  SEED_USER_EMAIL         (default: demo@tiendademo.py)
-  SEED_USER_PASSWORD      (default: DemoWTA2026!)
+  SEED_USER_EMAIL         Opcional. Default: demo@tiendademo.py (mismo email en cada wipe/reseed).
+  SEED_USER_PASSWORD      Opcional. Default: DemoWTA2026!
+                          No hace falta en .env en producción: los merchants usan /register (MS-ONB02).
 """
 from __future__ import annotations
 

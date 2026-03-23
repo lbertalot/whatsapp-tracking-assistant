@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Ayuda: conectar Tiendanube{% endblock %}
+
+{% block content %}
+<div class="settings-container help-guide">
+    <div class="settings-card help-hero">
+        <h1>Conectar tu tienda Tiendanube</h1>
+        <p class="help-lead">
+            No necesitás ser experto en tecnología. Seguí estos pasos y, si algo no abre,
+            revisá la sección <strong>«No puedo entrar al sistema»</strong> más abajo.
+        </p>
+    </div>
+
+    <div class="settings-card">
+        <h2 class="help-section-title"><span class="step-badge">1</span> Entrar al panel WTA</h2>
+        <ul class="checklist">
+            <li>Abrí el navegador (Chrome, Safari o Firefox).</li>
+            <li>Escribí la dirección exacta que te dio quien instaló el sistema.</li>
+        </ul>
+        <div class="callout callout-info">
+            <strong>Ejemplos de dirección</strong>
+            <ul>
+                <li>En la misma PC donde corre el sistema: <code id="helpLocalExample">http://localhost:8000</code></li>
+                <li>Desde el celular en la misma red Wi‑Fi: <code>http://TU-IP:8000</code> (pedile la IP a soporte).</li>
+                <li>Si está en internet (nube): te darán una URL tipo <code>https://…</code></li>
+            </ul>
+            <p class="help-muted">La página de inicio suele ser <strong>Iniciar sesión</strong>. Si ves un error de conexión, el servidor no está encendido o la dirección no es la correcta.</p>
+        </div>
+        <p>
+            <a href="/register" class="btn btn-primary">Crear cuenta</a>
+            <a href="/login" class="btn btn-outline" style="margin-left:0.5rem;">Iniciar sesión</a>
+        </p>
+    </div>
+
+    <div class="settings-card">
+        <h2 class="help-section-title"><span class="step-badge">2</span> Crear cuenta o iniciar sesión</h2>
+        <ul class="checklist">
+            <li>Si es tu primera vez: <strong>Crear cuenta</strong> con email, contraseña y nombre de tienda.</li>
+            <li>Si ya tenés usuario: <strong>Iniciar sesión</strong> con el mismo correo y contraseña.</li>
+            <li>Después, el sistema puede llevarte a la pantalla para <strong>conectar Tiendanube</strong>.</li>
+        </ul>
+    </div>
+
+    <div class="settings-card">
+        <h2 class="help-section-title"><span class="step-badge">3</span> Vincular Tiendanube (un clic)</h2>
+        <ul class="checklist">
+            <li>Tené a mano el acceso de <strong>administrador</strong> de la tienda en Tiendanube que querés vincular.</li>
+            <li>En WTA, tocá <strong>«Conectar con Tiendanube»</strong>.</li>
+            <li>Se abrirá Tiendanube: revisá que sea <em>tu</em> tienda y aceptá los permisos.</li>
+            <li>Volvés automáticamente a WTA. Si ves un mensaje de éxito, ya está listo.</li>
+        </ul>
+        <div class="callout callout-warning">
+            <strong>Si otra persona administra la tienda</strong><br>
+            Pedile que inicie sesión en WTA con su usuario o que, desde tu cuenta de administrador de Tiendanube, autorice la aplicación cuando se abra la ventana de Tiendanube.
+        </div>
+    </div>
+
+    <div class="settings-card">
+        <h2 class="help-section-title">No puedo entrar al sistema</h2>
+        <details class="faq-item" open>
+            <summary>«No se puede acceder a este sitio» o página en blanco</summary>
+            <p>Comprobá la dirección (incluido <code>http://</code> o <code>https://</code> y el puerto <code>:8000</code> si te lo indicaron). Si estás en otra computadora o en el celular, <strong>localhost</strong> no funciona: necesitás la IP o la URL pública.</p>
+        </details>
+        <details class="faq-item">
+            <summary>Entro al login pero después no pasa nada al conectar Tiendanube</summary>
+            <p>Puede faltar configurar la aplicación en el portal de socios de Tiendanube o las claves en el servidor. Eso lo resuelve soporte o el técnico; en la pantalla de conexión de WTA hay una sección para copiar las URLs que Tiendanube debe tener registradas.</p>
+        </details>
+        <details class="faq-item">
+            <summary>Me dice que el enlace expiró o hay conflicto de tienda</summary>
+            <p>Volvé a pulsar <strong>Conectar con Tiendanube</strong> desde el principio. Si el error sigue, puede que esa cuenta Tiendanube ya esté usada en otro registro: contactá soporte.</p>
+        </details>
+    </div>
+
+    <div class="settings-card help-footer-card">
+        <p class="help-muted">¿Ya tenés usuario? <a href="/login">Iniciar sesión</a> · <a href="/">Inicio</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var o = window.location.origin;
+    var el = document.getElementById('helpLocalExample');
+    if (el && o) el.textContent = o + '/login';
+})();
+</script>
+{% endblock %}
