@@ -12,6 +12,7 @@ Este plan descompone el MVP del WhatsApp Tracking Assistant en **22+ milestones*
 - **Onboarding**: **ONB02** registro merchant (`POST /auth/register`, **ADR-004**) → **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`, **ADR-002**); el grafo refleja esa secuencia recomendada
 - **Post-MVP** (H01–H02): homologación Tiendanube App Store + homologación / App Review Meta (WhatsApp)
 - **DevOps** (**MS-CI01**): GitHub Actions (lint, tests, seguridad, Docker, release), Dependabot, pre-commit — ver `CONTRIBUTING.md`
+- **Piloto comercial** (**MS-P01–P05**): entorno, Tiendanube real, WhatsApp/Meta real, Weraha o decisión de tracking, cierre con DoD — detalle operativo en **`docs/PILOT_READINESS.md`**
 
 **Metodología**: TDD estricto (Red → Green → Refactor) en cada milestone.
 
@@ -60,6 +61,19 @@ flowchart TD
     F04 --> H01
     F04 --> H02
 
+    CI01[MS-CI01<br>CI/CD] --> P01[MS-P01<br>Entorno piloto]
+    I02 --> P02[MS-P02<br>TN tienda real]
+    ONB01 --> P02
+    I06 --> P03[MS-P03<br>WA piloto Meta]
+    I07 --> P03
+    I08 --> P03
+    I03 --> P04[MS-P04<br>Weraha / tracking]
+    P01 --> P05[MS-P05<br>Cierre piloto DoD]
+    P02 --> P05
+    P03 --> P05
+    P04 --> P05
+    F04 --> P05
+
     style B01 fill:#4A90D9,color:#fff
     style B02 fill:#4A90D9,color:#fff
     style B03 fill:#4A90D9,color:#fff
@@ -84,6 +98,12 @@ flowchart TD
     style ONB02 fill:#9B59B6,color:#fff
     style H01 fill:#27AE60,color:#fff
     style H02 fill:#27AE60,color:#fff
+    style CI01 fill:#95A5A6,color:#fff
+    style P01 fill:#16A085,color:#fff
+    style P02 fill:#16A085,color:#fff
+    style P03 fill:#16A085,color:#fff
+    style P04 fill:#16A085,color:#fff
+    style P05 fill:#138D75,color:#fff
 ```
 
 ---
@@ -913,6 +933,114 @@ flowchart TD
 
 ---
 
+## Track Piloto comercial (MS-P01 a MS-P05)
+
+> Objetivo: **una tienda real** con flujo TN + WhatsApp medible según la **definición de hecho** en [`docs/PILOT_READINESS.md`](PILOT_READINESS.md). Estos hitos son en gran parte **operativos y de validación**; el código base asume **MS-I02, MS-ONB01, MS-I06–I08** y worker desplegado.
+
+---
+
+### MS-P01: Entorno de ejecución piloto
+
+- **Track**: Piloto / infra
+- **Depende de**: MS-CI01 (recomendado), despliegue existente (Heroku/Docker), MS-B02 (migraciones)
+- **Objetivo**: Staging o producción **acotada** con Postgres, `web` + `worker`, variables de entorno mínimas y sin secretos en repo.
+
+**Tasks**:
+
+- [ ] `DATABASE_URL` productiva; `alembic upgrade head` aplicado
+- [ ] `SECRET_KEY` fuerte; `APP_BASE_URL` HTTPS coherente con callbacks TN/WA
+- [ ] Proceso **web** (uvicorn) y **worker** (polling) activos con `POLL_INTERVAL_SECONDS` acorde al piloto
+- [ ] `APP_ENV=production` (o equivalente) si se requieren envíos WhatsApp **reales** (`resolve_for_store` no debe caer en mock por `development` sin credenciales)
+- [ ] Logs accesibles (Heroku logs / Docker) para incidencias
+
+**Criterio de completitud**: health/ready verdes; worker corre ciclos sin error de conexión a DB
+
+**Entregable deployable**: Sí — URL estable para merchants de prueba
+
+---
+
+### MS-P02: Tiendanube — tienda real conectada
+
+- **Track**: Piloto / integración
+- **Depende de**: MS-ONB01, MS-I02, MS-P01
+- **Objetivo**: App TN configurada; OAuth desde el panel; webhooks entregando órdenes al `store_id` correcto.
+
+**Tasks**:
+
+- [ ] App en consola Tiendanube con `TIENDANUBE_APP_ID` / `TIENDANUBE_CLIENT_SECRET` alineados al servidor
+- [ ] Redirect/callback: `{APP_BASE_URL}/integrations/tiendanube/callback`
+- [ ] Validar **scopes** en la app TN (el código no agrega `scope` en `TiendanubeService.get_auth_url()` — depende de la app)
+- [ ] Merchant: registro → OAuth → `StoreInstallation` con token; `onboarding_status` **active**
+- [ ] Webhooks registrados hacia `{APP_BASE_URL}/webhooks/tiendanube` (post-OAuth en `register_webhooks`; revisar logs ante fallos)
+- [ ] Prueba **order/created** o **order/paid** → fila en `orders` con teléfono o `invalid_phone` explícito
+- [ ] Prueba **order/fulfilled** → `tracking_number` poblado (payload o `GET` con agregados)
+- [ ] Confirmar criterio de firma HMAC TN vs `TIENDANUBE_CLIENT_SECRET` en `webhooks_tn.py`
+
+**Criterio de completitud**: al menos un pedido real o de staging TN visible en el panel WTA
+
+**Entregable deployable**: Sí — tienda real “en vivo” en WTA
+
+---
+
+### MS-P03: WhatsApp / Meta — envío y webhook en piloto
+
+- **Track**: Piloto / integración
+- **Depende de**: MS-I06, MS-I07, MS-I08, MS-P01, MS-P02 (orden con tracking/teléfono)
+- **Objetivo**: Plantillas Meta alineadas al código; `whatsapp_enabled=true`; webhook `statuses` opcional pero recomendado.
+
+**Tasks**:
+
+- [ ] Plantillas aprobadas; nombres = `template_in_transit` / `template_delivered` o defaults del motor (`shipping_in_transit_v1`, `shipping_delivered_v1`)
+- [ ] `whatsapp_template_language` y cuerpo de plantilla alineados a `build_template_body_components` (`order_id` primero) o `whatsapp_include_body_params=false` si no hay variables
+- [ ] Credenciales: por tienda en panel **o** fallback global + política clara (`WHATSAPP_ALLOW_GLOBAL_FALLBACK`)
+- [ ] **Activar** `whatsapp_enabled` en `store_settings` (el registro lo deja en `false` en `auth.py`)
+- [ ] Webhook Meta: `GET/POST /webhooks/whatsapp`, `META_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, HTTPS público
+- [ ] Prueba de envío a número permitido (sandbox/Live según modo Meta)
+- [ ] Verificar `NotificationAttempt` y, si aplica, `provider_delivery_status` tras eventos Meta
+
+**Criterio de completitud**: al menos un mensaje template entregado al cliente de prueba con trazabilidad en panel
+
+**Entregable deployable**: Sí — canal WA funcional para la tienda piloto
+
+---
+
+### MS-P04: Weraha o fuente de estado de envío acordada
+
+- **Track**: Piloto / logística
+- **Depende de**: MS-I03 (parcial en código), MS-B06, MS-P02
+- **Objetivo**: El worker obtiene transiciones **in_transit** / **delivered** de forma predecible para el piloto.
+
+**Tasks**:
+
+- [ ] **Opción A**: `WERAHA_API_URL` + `WERAHA_API_KEY` reales; validar que la respuesta JSON mapee con `state_mapper` / adapter (`GET {base}/tracking/{tracking_number}`)
+- [ ] **Opción B** (explícita): piloto sin Weraha — acordar que los estados vienen solo de TN / datos ya en orden y documentar limitaciones (puede no disparar segunda notificación sin transición)
+- [ ] Si se usa mock accidentalmente (URL vacía o `https://mock`), documentar que **no** representa logística real
+
+**Criterio de completitud**: al menos una transición de estado logística reflejada en `Order.current_status` antes del envío WA de “entregado”
+
+**Entregable deployable**: Parcial — depende del acuerdo con Weraha o TN
+
+---
+
+### MS-P05: Cierre del piloto — DoD y handoff
+
+- **Track**: Piloto / producto
+- **Depende de**: MS-P01, MS-P02, MS-P03, MS-P04; MS-F04 (panel usable)
+- **Objetivo**: Cumplir la **definición de hecho** unificada y dejar registro de incidentes y próximos pasos.
+
+**Tasks**:
+
+- [ ] Verificar DoD en [`PILOT_READINESS.md`](PILOT_READINESS.md) §10 (pedido real TN → orden → transiciones → templates WA → panel + webhook opcional)
+- [ ] Lista de issues encontrados (TN scopes, Graph errors, teléfonos, tracking)
+- [ ] Decisión documentada: multi-merchant estricto vs fallback global para siguiente fase
+- [ ] Actualizar `PILOT_READINESS.md` o este archivo si el comportamiento del código cambió durante el piloto
+
+**Criterio de completitud**: sign-off interno (producto + técnico) sobre el piloto de una tienda
+
+**Entregable deployable**: No — artefacto de aprendizaje + posible entrada a MS-H01 / MS-H02
+
+---
+
 ## Post-MVP (MS-H01)
 
 ---
@@ -997,6 +1125,12 @@ flowchart TD
 | MS-I07 | §5 (trazabilidad notificación) | §15, §17 | Webhooks Meta, firma App Secret; **ADR-005** |
 | MS-I08 | §5 (multi-merchant), §11 | §3.7, §5 (tenancy) | Tokens por tienda, seguridad |
 | MS-I05 | §8 (métricas clave) | §15 (métricas), §17 (observabilidad) | Observable día 1 |
+| MS-CI01 | — | — | Calidad entrega; `CONTRIBUTING.md` |
+| MS-P01 | §12 (piloto) | — | [`PILOT_READINESS.md`](PILOT_READINESS.md) — entorno |
+| MS-P02 | §5 (TN), §12 | §3.1 | TN real; ADR-002/003 |
+| MS-P03 | §5 (WA), §12 | §3.7, §11 | Meta piloto; **ADR-005**; `WHATSAPP_META.md` |
+| MS-P04 | §5 (Weraha) | §3.4 | Weraha real o decisión tracking |
+| MS-P05 | §12 (éxito producto) | — | DoD piloto; `PILOT_READINESS.md` §10 |
 | MS-H01 | §9 (Go-To-Market canal) | — | — |
 | MS-H02 | §5 (WhatsApp), cumplimiento | §11, §19 | Homologación Meta / App Review |
 
