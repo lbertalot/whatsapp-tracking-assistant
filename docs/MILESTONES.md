@@ -4,11 +4,12 @@
 
 ## Resumen ejecutivo
 
-Este plan descompone el MVP del WhatsApp Tracking Assistant en **17 milestones** organizados en 3 tracks paralelos (Backend, Frontend, Integración) + 1 milestone post-MVP (Homologación Tiendanube).
+Este plan descompone el MVP del WhatsApp Tracking Assistant en **18 milestones** organizados en 3 tracks paralelos (Backend, Frontend, Integración) + **Onboarding producto** + 1 milestone post-MVP (Homologación Tiendanube).
 
 - **Track Backend** (B01–B08): 8 milestones — desde fundación hasta notificaciones con idempotencia
 - **Track Frontend** (F01–F04): 4 milestones — desde login hasta panel vendible con trazabilidad
 - **Track Integración** (I01–I05): 5 milestones — Tiendanube OAuth, webhooks, Weraha real, WhatsApp real, observabilidad
+- **Onboarding** (ONB01): 1 milestone — vinculación obligatoria Tiendanube desde el panel (merchant ya autenticado)
 - **Post-MVP** (H01): 1 milestone — homologación Tiendanube App Store
 
 **Metodología**: TDD estricto (Red → Green → Refactor) en cada milestone.
@@ -37,6 +38,9 @@ flowchart TD
 
     B04 --> I01[MS-I01<br>Tiendanube OAuth]
     I01 --> I02[MS-I02<br>Tiendanube Webhooks]
+    F02 --> ONB01[MS-ONB01<br>Onboarding TN panel]
+    I01 --> ONB01
+    B03 --> ONB01
     B06 --> I03[MS-I03<br>Weraha Real]
     B07 --> I04[MS-I04<br>WhatsApp Real]
     I03 --> I05[MS-I05<br>Observabilidad & Health]
@@ -62,6 +66,7 @@ flowchart TD
     style I03 fill:#E67E22,color:#fff
     style I04 fill:#E67E22,color:#fff
     style I05 fill:#E67E22,color:#fff
+    style ONB01 fill:#9B59B6,color:#fff
     style H01 fill:#27AE60,color:#fff
 ```
 
@@ -519,35 +524,109 @@ flowchart TD
 
 ---
 
+### MS-ONB01: Onboarding Tiendanube (vinculación desde el panel)
+
+- **Track**: Onboarding (producto — cruza Backend + Frontend + Integración)
+- **Depende de**: MS-B03 (auth JWT), MS-I01 (OAuth TN técnico), MS-F02 (panel existente)
+- **Objetivo**: Todo merchant que **ingresa al sitio** (login en el panel) debe **vincular su tienda de Tiendanube** a la aplicación antes de usar el producto de forma completa; el `access_token` y el `user_id` de TN quedan asociados al **mismo** `Store` que el `StoreUser` autenticado, sin crear tiendas huérfanas ni duplicar registros.
+
+**Contexto / problema hoy**: el callback de MS-I01 crea `Store` por `user_id` de TN sin relación con el usuario que ya inició sesión con otra `store_id` (p. ej. seed o registro previo). Este milestone cierra ese gap con flujo **autenticado + `state` OAuth**.
+
+**Flujo esperado (alto nivel)**:
+
+1. Merchant hace login → recibe JWT con `store_id`.
+2. Si la tienda **no** tiene instalación TN activa (`store_installations` + token válido) o `onboarding_status` indica pendiente → redirigir o bloquear acceso a `/panel` y `/settings` mostrando **onboarding obligatorio**.
+3. Pantalla **Conectar Tiendanube** con CTA que inicia OAuth incluyendo un **`state`** firmado (p. ej. JWT de corta vida con `store_id`, `exp`, posiblemente `nonce`).
+4. Tiendanube redirige al callback con `code` + `state` → backend valida `state`, intercambia `code` por token (mismo contrato que MS-I01), persiste `access_token` en `StoreInstallation` del **store del JWT**, actualiza `Store.external_store_id` con `user_id` de TN, opcionalmente `Store.name` vía `GET /store` de la API TN, marca `StoreSettings.onboarding_status` acorde al PRD (p. ej. `tn_connected` o avanza hacia `active` según política definida).
+5. Redirección amigable a `/panel` (o `/onboarding/success`) con mensaje de éxito.
+
+**Tasks — Backend**:
+
+- [x] Documentar y alinear **intercambio de token** con la API real de Tiendanube: `TiendanubeService.exchange_code()` usa **JSON** + `Content-Type: application/json` (validar en producción si TN exige `form-urlencoded` y añadir fallback si hiciera falta).
+- [x] Generar **`state`** seguro: JWT firmado (`create_tn_oauth_state` / `decode_tn_oauth_state`), payload con `store_id`, `purpose: tn_oauth`, TTL 15 min.
+- [x] Endpoint autenticado `GET /api/integrations/tiendanube/install-url`: Bearer obligatorio; responde JSON `{ "url" }` con URL TN que incluye `state=` (el front redirige con `window.location`; alternativa 302 no requerida).
+- [x] Refactor de `GET /integrations/tiendanube/callback`: con `state` + `code` valida JWT → `store_id`, persiste en **ese** `Store`; sin `state` se mantiene flujo **legacy** (crear/actualizar por `user_id` TN).
+- [x] Persistencia: `external_store_id`, upsert `StoreInstallation` TN activa, `StoreSettings.onboarding_status` → `active` tras éxito.
+- [x] Política de **conflicto**: si `external_store_id` ≠ `user_id` TN → redirect browser a `/onboarding?error=store_conflict` (ver ADR-002).
+- [x] `GET /api/onboarding/status` (JWT) para gating (`needs_tiendanube`, etc.) + `oauth_callback_url`, `webhook_public_url`, `tiendanube_app_configured` para UX y soporte.
+- [x] `GET /api/integrations/tiendanube/install-url` devuelve **503** si faltan `TIENDANUBE_APP_ID` / `CLIENT_SECRET` (mensaje claro al usuario).
+- [x] Tras vinculación: intento de `register_webhooks` (best-effort, log si falla).
+- [x] Logs sin volcar `access_token` completo (solo metadatos / IDs).
+
+**Tasks — Frontend (Jinja + JS)**:
+
+- [x] `GET /onboarding`: flujo **paso a paso** (requisitos → autorizar en TN → listo), CTA destacada, muestra **URL actual** (`window.location.origin`) para evitar confusiones con `localhost` vs otra máquina.
+- [x] Bloque **para soporte**: copiar callback OAuth y URL de webhooks (desde API), FAQ colapsable (acceso, errores).
+- [x] `GET /ayuda/conectar-tiendanube` **pública** (sin login): guía en lenguaje de vendedor + enlace a login; pie de página global con enlace a ayuda.
+- [x] `GET /login`: enlace a la guía; si ya hay JWT, redirige a `/onboarding` cuando `needs_tiendanube` (no mandar al panel a ciegas).
+- [x] Cabecera: enlace **«Conectar tienda»** visible mientras `needs_tiendanube` (fetch a `/api/onboarding/status`).
+- [x] **Guard** en `/panel`, `/settings` y post-login: si `needs_tiendanube` → `/onboarding`.
+- [x] Mensajes post-callback vía query `?success=1` / `?error=…`; manejo de **503** al pedir `install-url`.
+- [x] Deshabilitar CTA y aviso si `tiendanube_app_configured` es falso.
+- [x] Textos en español orientados a merchant.
+
+**Tests TDD requeridos**:
+
+- [x] `test_onboarding_status_unauthenticated`
+- [x] `test_onboarding_status_needs_tn`
+- [x] `test_onboarding_status_linked`
+- [x] `test_tn_install_url_requires_auth` (equivalente: install-url sin Bearer → 401)
+- [x] `test_tn_install_url_contains_state` (equivalente: URL JSON incluye `state=`)
+- [x] `test_tn_callback_valid_state_links_store`
+- [x] `test_tn_callback_invalid_state_redirect` (redirect `invalid_state`; no 400 JSON en flujo browser)
+- [x] `test_tn_callback_unknown_store_redirect` (`store_id` inexistente → `error=unknown_store`)
+- [x] `test_tn_callback_store_conflict`
+- [x] `test_exchange_code_sends_json`
+- [x] `test_tn_install_url_503_when_tn_not_configured`
+- [x] Tests UI: guía pública `/ayuda/conectar-tiendanube`, login con enlace ayuda, onboarding con pasos y bloques de copia
+
+**Test E2E del milestone**:
+
+- [x] Cubierto por la cadena de tests anteriores + UI `TestOnboardingPage` (`GET /onboarding`); E2E navegador manual con TN real queda como validación en staging.
+
+**Criterio de completitud**: un usuario autenticado no puede usar el panel “de producción” sin completar la vinculación TN; tras vincular, ve su tienda correcta y el worker/webhooks (I02+) operan sobre el mismo `store_id`.
+
+**Entregable deployable**: Sí — flujo demo reproducible con tienda TN de prueba (`user_id` / token como el obtenido con `authorization_code`).
+
+**Notas de implementación**:
+
+- URL de callback registrada en el portal de la app TN debe coincidir con `APP_BASE_URL/integrations/tiendanube/callback` (o ruta final acordada).
+- Alcance OAuth (`scope`) debe incluir los permisos necesarios para órdenes y webhooks según RFC/PRD (el ejemplo real mostró `write_products`; validar si hace falta `read_orders` / scopes adicionales para MS-I02).
+- Seed Docker: `SEED_TN_LINK_MODE=oauth_ready` (default) deja `external_store_id` vacío hasta OAuth → evita `store_conflict` con tiendas TN reales; `demo` mantiene panel con token placeholder (`docs/DOCKER.md`, tests `test_seed_oauth_e2e.py`).
+
+---
+
 ### MS-I02: Tiendanube Webhooks
 
 - **Track**: Integración
-- **Depende de**: MS-I01
+- **Depende de**: MS-I01 (MS-ONB01 recomendado antes en flujo “login panel primero” para que webhooks y órdenes caigan en el `store` correcto)
 - **Objetivo**: Recibir webhooks de Tiendanube (order/created, order/fulfilled) y crear órdenes reales
 
 **Tasks**:
 
-- [ ] Endpoint `POST /webhooks/tiendanube` que recibe payloads de TN
-- [ ] Verificación HMAC: validar `x-linkedstore-hmac-sha256` con `client_secret`
-- [ ] Al recibir `order/created` o `order/paid`: fetch order detail de API TN → crear orden local
-- [ ] Al recibir `order/fulfilled`: extraer `tracking_info.code` → actualizar `tracking_number`
-- [ ] Registrar webhooks en TN vía API: POST /webhooks para `order/created`, `order/paid`, `order/fulfilled`
-- [ ] Implementar webhooks obligatorios LGPD: `store/redact`, `customers/redact`, `customers/data_request`
-- [ ] Retornar 200 dentro de 3 segundos (procesar async si es necesario)
+- [x] Endpoint `POST /webhooks/tiendanube` que recibe payloads de TN
+- [x] Verificación HMAC: validar `x-linkedstore-hmac-sha256` con `client_secret`
+- [x] `order/created` / `order/paid`: **GET** orden en API TN (`TiendanubeService.fetch_order`) → crear orden local (el webhook oficial solo manda `store_id`, `event`, `id`)
+- [x] `order/fulfilled`: `tracking_info` en `fulfillment_orders` (API con `aggregates=fulfillment_orders`) y/o campos del POST; si orden existe y el payload trae tracking, **sin llamada API** (latencia & tope 3s)
+- [x] Registro webhooks en TN: `register_webhooks` en MS-I01/ONB (`order/created`, `order/paid`, `order/fulfilled`)
+- [x] LGPD: `store/redact` (marca `Store.status=redacted`, desactiva instalaciones), `customers/redact` / `customers/data_request` → 200 ack (borrado profundo de PII fuera de MVP)
+- [x] Objetivo **&lt; 3s**: timeouts cortos en `fetch_order` (2,5s); **503** si falla el fetch para que TN reintente
 
 **Tests TDD requeridos**:
 
-- [ ] `test_webhook_hmac_valid` — HMAC correcto → procesa
-- [ ] `test_webhook_hmac_invalid` — HMAC incorrecto → 401
-- [ ] `test_webhook_order_created` — crea orden local con datos de TN
-- [ ] `test_webhook_order_fulfilled_updates_tracking` — tracking_number se actualiza
-- [ ] `test_webhook_idempotent` — misma orden no se duplica
-- [ ] `test_webhook_store_redact` — store/redact retorna 200 y marca store
-- [ ] `test_webhook_responds_fast` — respuesta < 3 segundos
+- [x] `test_webhook_hmac_valid`
+- [x] `test_webhook_hmac_invalid`
+- [x] `test_webhook_order_created` (mock API TN)
+- [x] `test_webhook_order_fulfilled_updates_tracking`
+- [x] `test_webhook_idempotent`
+- [x] `test_webhook_store_redact` (+ instalación `is_active=False`)
+- [x] `test_webhook_responds_fast`
+- [x] `test_webhook_customers_redact` / `test_webhook_customers_data_request`
+- [x] `test_webhook_tracking_info_from_payload_without_api_aggregate` (payload enriquecido / extensión)
 
 **Test E2E del milestone**:
 
-- [ ] Enviar webhook mock de TN → orden creada con phone normalizado → enviar fulfilled → tracking actualizado
+- [x] Cubierto por tests de integración con mock de `fetch_order`; validación manual contra TN en staging
 
 **Criterio de completitud**: órdenes de Tiendanube llegan automáticamente al sistema
 
@@ -714,6 +793,7 @@ flowchart TD
 | MS-F03 | §3 (error visible) | §18 (casos borde visibles) | Observable día 1 |
 | MS-F04 | §12 (éxito de producto) | — | UI vendible, Principios |
 | MS-I01 | §5 (integración fuente órdenes) | §3.1 (ingesta), §10 (flujo activación paso 1) | Arquitectura general |
+| MS-ONB01 | §4 (onboarding simple), §5 (fuente TN) | §8 (auth), §10 (activación), §3.1 (vinculación merchant) | Panel vendible, tenancy |
 | MS-I02 | §5 (integración fuente órdenes) | §3.1 (ingesta webhooks) | Arquitectura general |
 | MS-I03 | §5 (integración Weraha) | §3.4 (weraha adapter), §10 (paso 2) | Fase 2, Polling |
 | MS-I04 | §5 (notificaciones WhatsApp), §7 (mensajes) | §3.7 (whatsapp service), §11 (prerequisitos), §10 (pasos 3-4) | Fase 3, Meta API |
@@ -735,6 +815,7 @@ Checklist final alineada con RFC §20 y PRD §12:
 - [ ] **Errores trazables** — fallos visibles en panel con motivo (MS-B08, MS-F03)
 - [ ] **Acceso aislado por tienda** — store A no ve datos de store B (MS-B03, MS-B05)
 - [ ] **Onboarding persistido** — config de Weraha/WhatsApp/templates por tienda (MS-B02, MS-I04)
+- [ ] **Tiendanube vinculada al panel** — merchant autenticado asocia su tienda TN al mismo `Store` del JWT; sin duplicar tiendas huérfanas (MS-ONB01)
 
 ### Éxito de producto
 
@@ -767,6 +848,7 @@ Semana 2:  MS-B03 + MS-B04 (paralelo)
 Semana 3:  MS-B05 + MS-F01 (paralelo) → MS-B06
 Semana 4:  MS-F02 + MS-B07 (paralelo)
 Semana 5:  MS-B08 + MS-I01 (paralelo) → MS-F03
+Semana 5b: MS-ONB01 (tras F02 + I01 listos) — onboarding TN obligatorio en panel
 Semana 6:  MS-I02 + MS-I03 (paralelo)
 Semana 7:  MS-I04 + MS-F04 (paralelo)
 Semana 8:  MS-I05 → Validación final
