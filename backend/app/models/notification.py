@@ -17,6 +17,9 @@ class NotificationAttempt(Base):
     template_name = Column(String(100), nullable=True)
     status = Column(String(50), nullable=False)
     provider_message_id = Column(String(150), nullable=True)
+    # Estados entregados por webhook Meta (statuses): sent, delivered, read, failed, ...
+    provider_delivery_status = Column(String(50), nullable=True)
+    provider_delivery_status_at = Column(DateTime, nullable=True)
     error_code = Column(String(100), nullable=True)
     error_message = Column(Text, nullable=True)
     attempt_number = Column(Integer, default=1)

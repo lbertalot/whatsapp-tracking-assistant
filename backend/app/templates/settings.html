@@ -39,6 +39,63 @@
             </div>
         </div>
 
+        <div class="settings-card" id="waSettingsCard">
+            <h3>WhatsApp (Meta Cloud API)</h3>
+            <p>Configura el <strong>Phone number ID</strong> y el <strong>token de acceso</strong> de tu app en
+               <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>.
+               El token no se muestra después de guardarlo.
+               <a href="https://developers.facebook.com/docs/whatsapp/cloud-api" target="_blank" rel="noopener">Documentación Cloud API</a>.</p>
+            <p class="settings-hint" style="margin-bottom:0.75rem;">En el repositorio del proyecto: <code>docs/WHATSAPP_META.md</code>.</p>
+
+            <div class="form-group">
+                <label class="settings-checkbox-label">
+                    <input type="checkbox" id="waEnabled"> Notificaciones WhatsApp habilitadas para esta tienda
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="settings-checkbox-label">
+                    <input type="checkbox" id="waIncludeBodyParams"> Incluir variables del pedido en la plantilla (order_id)
+                </label>
+                <div class="settings-hint">Desactivá esto si tus plantillas en Meta <strong>no tienen</strong> variables en el cuerpo; si no, Meta puede rechazar el envío.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="waPhoneId">Phone number ID</label>
+                <input type="text" id="waPhoneId" placeholder="ej: 123456789012345" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="waToken">Token de acceso (nuevo)</label>
+                <input type="password" id="waToken" placeholder="Dejar vacio para no cambiar el token actual" autocomplete="new-password">
+                <div class="settings-hint">Solo completá si querés reemplazar el token. No se puede ver el token guardado.</div>
+            </div>
+
+            <div class="form-group">
+                <label class="settings-checkbox-label">
+                    <input type="checkbox" id="waClearToken"> Eliminar token guardado (usar solo fallback global si está permitido)
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="waLang">Idioma del template (Meta)</label>
+                <select id="waLang" class="form-select">
+                    <option value="es">es</option>
+                    <option value="es_AR">es_AR</option>
+                    <option value="pt_BR">pt_BR</option>
+                    <option value="en">en</option>
+                </select>
+                <div class="settings-hint">Debe coincidir con el idioma aprobado de tus plantillas en Business Manager.</div>
+            </div>
+
+            <div class="settings-hint" style="margin-bottom:0.75rem;">Token configurado: <strong id="waTokenStatus">—</strong></div>
+
+            <div class="settings-actions">
+                <button class="btn btn-primary" id="btnSaveWa">Guardar integracion WhatsApp</button>
+                <span class="text-muted" id="saveWaStatus" style="align-self:center;font-size:0.8125rem;"></span>
+            </div>
+        </div>
+
         <div class="settings-card">
             <h3>Estado del sistema</h3>
             <p>Informacion de tu integracion actual.</p>
@@ -78,6 +135,15 @@
     var tplDel = document.getElementById('tplDelivered');
     var btnSave = document.getElementById('btnSave');
     var saveStatus = document.getElementById('saveStatus');
+    var waEnabled = document.getElementById('waEnabled');
+    var waIncludeBodyParams = document.getElementById('waIncludeBodyParams');
+    var waPhoneId = document.getElementById('waPhoneId');
+    var waToken = document.getElementById('waToken');
+    var waClearToken = document.getElementById('waClearToken');
+    var waLang = document.getElementById('waLang');
+    var waTokenStatus = document.getElementById('waTokenStatus');
+    var btnSaveWa = document.getElementById('btnSaveWa');
+    var saveWaStatus = document.getElementById('saveWaStatus');
 
     function showAlert(msg, type) {
         alertEl.className = 'alert alert-' + type;
@@ -102,6 +168,14 @@
             var s = await resp.json();
             tplIn.value = s.template_in_transit || '';
             tplDel.value = s.template_delivered || '';
+
+            waEnabled.checked = !!s.whatsapp_enabled;
+            waIncludeBodyParams.checked = s.whatsapp_include_body_params !== false;
+            waPhoneId.value = s.whatsapp_phone_number_id || '';
+            waToken.value = '';
+            waClearToken.checked = false;
+            waLang.value = s.whatsapp_template_language || 'es';
+            waTokenStatus.textContent = s.whatsapp_token_configured ? 'Si' : 'No';
 
             document.getElementById('infoWeraha').textContent = s.weraha_enabled ? 'Si' : 'No';
             document.getElementById('infoWhatsapp').textContent = s.whatsapp_enabled ? 'Si' : 'No';
@@ -145,6 +219,54 @@
             showAlert('Error de red. Intenta de nuevo.', 'error');
         } finally {
             btnSave.disabled = false;
+        }
+    });
+
+    btnSaveWa.addEventListener('click', async function() {
+        btnSaveWa.disabled = true;
+        saveWaStatus.textContent = 'Guardando...';
+
+        var body = {
+            whatsapp_enabled: waEnabled.checked,
+            whatsapp_include_body_params: waIncludeBodyParams.checked,
+            whatsapp_phone_number_id: waPhoneId.value.trim() || null,
+            whatsapp_template_language: waLang.value || 'es',
+        };
+
+        if (waClearToken.checked) {
+            body.whatsapp_access_token = '';
+        } else if (waToken.value.trim()) {
+            body.whatsapp_access_token = waToken.value.trim();
+        }
+
+        try {
+            var resp = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+                body: JSON.stringify(body),
+            });
+
+            if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
+
+            if (resp.ok) {
+                var saved = await resp.json();
+                saveWaStatus.textContent = '';
+                waToken.value = '';
+                waClearToken.checked = false;
+                waTokenStatus.textContent = saved.whatsapp_token_configured ? 'Si' : 'No';
+                document.getElementById('infoWhatsapp').textContent = saved.whatsapp_enabled ? 'Si' : 'No';
+                document.getElementById('infoPhoneId').textContent = saved.whatsapp_phone_number_id || '—';
+                showAlert('Integracion WhatsApp guardada.', 'success');
+            } else {
+                var err = await resp.json();
+                saveWaStatus.textContent = '';
+                showAlert('Error: ' + (err.detail || 'No se pudo guardar.'), 'error');
+            }
+        } catch(e) {
+            saveWaStatus.textContent = '';
+            showAlert('Error de red. Intenta de nuevo.', 'error');
+        } finally {
+            btnSaveWa.disabled = false;
         }
     });
 

@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +15,12 @@ def _setup_store_and_order(session, **order_overrides):
     session.add(store)
     session.flush()
 
-    settings = StoreSettings(store_id=store.id, onboarding_status="active", weraha_enabled=True)
+    settings = StoreSettings(
+        store_id=store.id,
+        onboarding_status="active",
+        weraha_enabled=True,
+        whatsapp_enabled=True,
+    )
     session.add(settings)
 
     defaults = dict(
@@ -148,3 +153,48 @@ class TestNotificationEngine:
         result = engine.evaluate_and_notify(notif_session, order)
         assert result["sent"] is False
         assert result["reason"] == "invalid_phone"
+
+    def test_whatsapp_disabled_skips_send(self, notif_session):
+        from backend.app.services.notification import NotificationEngine
+        from backend.app.services.whatsapp import WhatsAppService
+
+        store, order = _setup_store_and_order(notif_session, current_status="in_transit")
+        st = (
+            notif_session.query(StoreSettings)
+            .filter(StoreSettings.store_id == store.id)
+            .first()
+        )
+        st.whatsapp_enabled = False
+        notif_session.commit()
+
+        mock_wa = MagicMock()
+        engine = NotificationEngine(whatsapp=mock_wa)
+
+        result = engine.evaluate_and_notify(notif_session, order)
+        assert result["sent"] is False
+        assert result["reason"] == "whatsapp_disabled"
+        mock_wa.send_template_message.assert_not_called()
+
+    def test_whatsapp_include_body_params_false_omits_order_id(self, notif_session):
+        from backend.app.services.notification import NotificationEngine
+
+        store, order = _setup_store_and_order(notif_session, current_status="in_transit")
+        st = (
+            notif_session.query(StoreSettings)
+            .filter(StoreSettings.store_id == store.id)
+            .first()
+        )
+        st.whatsapp_include_body_params = False
+        notif_session.commit()
+
+        mock_wa = MagicMock()
+        mock_wa.send_template_message.return_value = {
+            "success": True,
+            "message_id": "wamid.mock",
+        }
+        engine = NotificationEngine(whatsapp=mock_wa)
+        engine.evaluate_and_notify(notif_session, order)
+
+        mock_wa.send_template_message.assert_called_once()
+        _args, kwargs = mock_wa.send_template_message.call_args
+        assert kwargs.get("params") == {}

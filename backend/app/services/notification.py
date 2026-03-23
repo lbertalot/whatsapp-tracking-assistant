@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -6,9 +7,28 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.notification import NotificationAttempt
 from backend.app.models.order import Order
-from backend.app.services.whatsapp import WhatsAppService
+from backend.app.models.store import StoreSettings
+from backend.app.services.whatsapp import WhatsAppService, graph_send_error_may_benefit_from_retry
 
 logger = logging.getLogger(__name__)
+
+
+def _store_whatsapp_notifications_enabled(st: Optional[StoreSettings]) -> bool:
+    """False solo si la tienda desactivó explícitamente; None en BD legacy = habilitado."""
+    if st is None:
+        return True
+    if st.whatsapp_enabled is None:
+        return True
+    return bool(st.whatsapp_enabled)
+
+
+def _store_include_template_body_params(st: Optional[StoreSettings]) -> bool:
+    """Si False, enviar plantilla sin `components` (útil si Meta no tiene variables en el body)."""
+    if st is None:
+        return True
+    if getattr(st, "whatsapp_include_body_params", None) is None:
+        return True
+    return bool(st.whatsapp_include_body_params)
 
 TEMPLATE_MAP = {
     "in_transit": "shipping_in_transit_v1",
@@ -23,8 +43,13 @@ PREVIEW_MAP = {
 
 class NotificationEngine:
     def __init__(self, whatsapp: Optional[WhatsAppService] = None, max_retries: int = 1):
-        self.whatsapp = whatsapp or WhatsAppService(mock=True)
+        self._whatsapp_override = whatsapp
         self.max_retries = max_retries
+
+    def _whatsapp(self, db: Session, store_id: int) -> WhatsAppService:
+        if self._whatsapp_override is not None:
+            return self._whatsapp_override
+        return WhatsAppService.resolve_for_store(db, store_id)
 
     def evaluate_and_notify(self, db: Session, order: Order) -> Dict:
         if order.invalid_phone:
@@ -33,6 +58,14 @@ class NotificationEngine:
         event_type = self._get_pending_event(order)
         if event_type is None:
             return {"sent": False, "reason": "already_notified"}
+
+        st = (
+            db.query(StoreSettings)
+            .filter(StoreSettings.store_id == order.store_id)
+            .first()
+        )
+        if not _store_whatsapp_notifications_enabled(st):
+            return {"sent": False, "reason": "whatsapp_disabled"}
 
         idempotency_key = f"{order.store_id}:{order.id}:{event_type}"
 
@@ -47,7 +80,9 @@ class NotificationEngine:
         if existing:
             return {"sent": False, "reason": "already_notified"}
 
-        return self._send_with_retry(db, order, event_type, idempotency_key)
+        return self._send_with_retry(
+            db, order, event_type, idempotency_key, store_settings=st
+        )
 
     def _get_pending_event(self, order: Order) -> Optional[str]:
         if order.current_status == "in_transit" and not order.notified_in_transit:
@@ -57,16 +92,42 @@ class NotificationEngine:
         return None
 
     def _send_with_retry(
-        self, db: Session, order: Order, event_type: str, idempotency_key: str
+        self,
+        db: Session,
+        order: Order,
+        event_type: str,
+        idempotency_key: str,
+        *,
+        store_settings: Optional[StoreSettings] = None,
     ) -> Dict:
-        template_name = TEMPLATE_MAP.get(event_type, event_type)
-        last_result = None
+        st = store_settings
+        if st is None:
+            st = (
+                db.query(StoreSettings)
+                .filter(StoreSettings.store_id == order.store_id)
+                .first()
+            )
+        include_body = _store_include_template_body_params(st)
+        template_params = (
+            {"order_id": str(order.external_id)} if include_body else {}
+        )
 
-        for attempt_num in range(1, self.max_retries + 2):
-            result = self.whatsapp.send_template_message(
+        template_name = TEMPLATE_MAP.get(event_type, event_type)
+        if st:
+            if event_type == "in_transit" and (st.template_in_transit or "").strip():
+                template_name = st.template_in_transit.strip()
+            elif event_type == "delivered" and (st.template_delivered or "").strip():
+                template_name = st.template_delivered.strip()
+
+        last_result = None
+        max_attempts = self.max_retries + 1
+
+        for attempt_num in range(1, max_attempts + 1):
+            wa = self._whatsapp(db, order.store_id)
+            result = wa.send_template_message(
                 to=order.normalized_phone,
                 template_name=template_name,
-                params={"order_id": str(order.external_id)},
+                params=template_params,
             )
 
             attempt = NotificationAttempt(
@@ -74,7 +135,8 @@ class NotificationEngine:
                 order_id=order.id,
                 event_type=event_type,
                 idempotency_key=(
-                    idempotency_key if attempt_num == 1
+                    idempotency_key
+                    if attempt_num == 1
                     else f"{idempotency_key}:retry_{attempt_num}"
                 ),
                 template_name=template_name,
@@ -93,12 +155,30 @@ class NotificationEngine:
 
             last_result = result
 
+            if attempt_num < max_attempts and not result["success"]:
+                if not graph_send_error_may_benefit_from_retry(result):
+                    break
+                ra = result.get("retry_after")
+                if ra is not None:
+                    try:
+                        delay = min(int(str(ra).strip()), 120)
+                        delay = max(delay, 1)
+                    except (ValueError, TypeError):
+                        delay = 2
+                    logger.info(
+                        "WhatsApp rate limit / retry: esperando %ss antes del reintento %s/%s",
+                        delay,
+                        attempt_num + 1,
+                        max_attempts,
+                    )
+                    time.sleep(delay)
+
         self._update_order_failure(db, order, last_result)
         return {
             "sent": False,
             "reason": "send_failed",
             "event_type": event_type,
-            "error": last_result.get("error_message"),
+            "error": last_result.get("error_message") if last_result else None,
         }
 
     def _update_order_success(

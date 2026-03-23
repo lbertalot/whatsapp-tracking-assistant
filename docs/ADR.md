@@ -436,6 +436,30 @@ Los webhooks de TN para `order/*` solo incluyen `store_id`, `event` e `id` de la
 
 ---
 
+## ADR-004 — WhatsApp Cloud API (Meta): plantillas, errores Graph y webhook
+
+### Contexto
+
+El envío mínimo a `/{phone-number-id}/messages` sin `template.components` falla cuando las plantillas tienen variables. Meta exige webhook con verificación y firma `X-Hub-Signature-256` para producción y buenas prácticas. Los milestones **MS-I06** e **MS-I07** en `docs/MILESTONES.md` detallan el alcance.
+
+### Decisión
+
+1. **Plantillas con parámetros**: si `send_template_message` recibe `params`, se arma `template.components` con un bloque `body` y parámetros `type: text` en orden estable: `order_id` primero, luego el resto de claves alfabéticamente (alineado a plantillas shipping del MVP).
+2. **Errores HTTP**: no depender solo de `raise_for_status`; para `status_code >= 400` parsear JSON `error.code` / `message` y propagar `Retry-After` en el mensaje cuando exista.
+3. **Webhook** (`GET` + `POST /webhooks/whatsapp`):
+   - `GET`: `hub.verify_token` debe coincidir con `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+   - `POST`: cuerpo raw + validación HMAC-SHA256 con `META_APP_SECRET` (mismo secret que usa Meta para firmar).
+4. **Trazabilidad de entrega**: actualizar `NotificationAttempt` por `provider_message_id == wamid` con `provider_delivery_status` y timestamp del payload `statuses`.
+5. **Credenciales por tienda (MS-I08)**: `store_settings.whatsapp_access_token` + `whatsapp_phone_number_id` + idioma; `WhatsAppService.resolve_for_store`; fallback global opcional `WHATSAPP_ALLOW_GLOBAL_FALLBACK`.
+
+### Consecuencias
+
+* Migraciones Alembic: columnas en `notification_attempts` y `store_settings`.
+* Multi-tenant: en producción desactivar fallback y obligar token por tienda vía `PUT /api/settings` (ver `docs/WHATSAPP_META.md`).
+* Configurar en Meta la URL pública HTTPS del webhook y el verify token; nunca commitear `META_APP_SECRET`.
+
+---
+
 ## Resultado esperado
 
 Con este ADR:
