@@ -9,11 +9,27 @@ Reduce consultas WISMO automatizando avisos de estado de envío y dando visibili
 - **Backend**: FastAPI (Python 3.11+)
 - **Base de datos**: PostgreSQL
 - **UI**: Jinja2 templates integrados al backend
-- **Infraestructura**: Heroku
+- **Infraestructura**: Heroku / Docker local
 - **WhatsApp**: Meta Cloud API
 - **Logística**: Weraha API
 
 ## Setup local
+
+### Opción A — Docker (recomendado, paridad con Heroku)
+
+```bash
+cp .env.docker.example .env.docker   # opcional
+docker compose up --build
+# Datos demo (tienda + órdenes TN-100x):
+docker compose run --rm web python scripts/seed_demo_data.py
+# Por defecto el seed usa SEED_TN_LINK_MODE=oauth_ready (panel pide vincular TN real).
+# Panel demo sin OAuth: SEED_TN_LINK_MODE=demo docker compose run --rm web python scripts/seed_demo_data.py
+# Cuenta nueva sin seed: abrí http://localhost:8000/register (MS-ONB02).
+```
+
+Detalle: [docs/DOCKER.md](docs/DOCKER.md)
+
+### Opción B — Python en la máquina
 
 ```bash
 # 1. Clonar
@@ -33,7 +49,7 @@ cp .env.example .env
 
 # 5. Base de datos
 createdb wta_dev
-psql wta_dev < backend/app/db/schema.sql
+alembic upgrade head
 
 # 6. Correr
 uvicorn backend.app.main:app --reload
@@ -62,6 +78,7 @@ tests/          # pytest
 - [PRD.md](docs/PRD.md) — Producto
 - [RFC.md](docs/RFC.md) — Diseño técnico
 - [ADR.md](docs/ADR.md) — Decisiones de arquitectura
+- [DOCKER.md](docs/DOCKER.md) — Ejecución local con Docker (paridad Heroku)
 
 ## Despliegue (Heroku)
 

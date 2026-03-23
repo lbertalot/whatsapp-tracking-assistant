@@ -72,6 +72,7 @@ En Paraguay, los e-commerce que operan con soluciones como Weraha enfrentan un p
 
 * <10 minutos
 * sin integraciones complejas
+* **Registro self-service** (`/register`): el vendedor crea email/contraseña y nombre de tienda; luego vincula Tiendanube (OAuth) desde el panel — sin depender de credenciales fijas en variables de entorno en despliegue normal (ver **MS-ONB02** / **MS-ONB01** en `docs/MILESTONES.md`).
 
 Supuesto:
 
