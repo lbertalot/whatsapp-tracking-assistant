@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wta_local_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-wta_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wta} -d ${POSTGRES_DB:-wta_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      PORT: "8000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wta}:${POSTGRES_PASSWORD:-wta_local_dev_only}@postgres:5432/${POSTGRES_DB:-wta_dev}
+      SECRET_KEY: ${SECRET_KEY:-docker-dev-insecure-change-me}
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: .
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wta}:${POSTGRES_PASSWORD:-wta_local_dev_only}@postgres:5432/${POSTGRES_DB:-wta_dev}
+      SECRET_KEY: ${SECRET_KEY:-docker-dev-insecure-change-me}
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["python", "-m", "backend.app.workers.polling"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

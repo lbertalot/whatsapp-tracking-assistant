@@ -24,8 +24,6 @@ notification_engine = NotificationEngine(whatsapp=whatsapp_service)
 TERMINAL_STATUSES = {"delivered", "notification_failed"}
 POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
 
-POLL_INTERVAL_SECONDS = 300
-
 
 def get_eligible_orders(db: Session) -> List[Order]:
     active_store_ids = (
@@ -97,7 +95,7 @@ if __name__ == "__main__":
     logger.info(
         "Worker starting (mock=%s, interval=%ds)",
         _use_mock,
-        POLL_INTERVAL_SECONDS,
+        settings.POLL_INTERVAL_SECONDS,
     )
 
     while True:
@@ -110,4 +108,4 @@ if __name__ == "__main__":
         finally:
             db.close()
 
-        time.sleep(POLL_INTERVAL_SECONDS)
+        time.sleep(settings.POLL_INTERVAL_SECONDS)
