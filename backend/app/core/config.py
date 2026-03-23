@@ -27,5 +27,8 @@ class Settings(BaseSettings):
     TIENDANUBE_API_URL: str = "https://api.tiendanube.com/v1"
     APP_BASE_URL: str = "http://localhost:8000"
 
+    # Worker loop interval (seconds); override in Docker dev with POLL_INTERVAL_SECONDS=60
+    POLL_INTERVAL_SECONDS: int = 300
+
 
 settings = Settings()

@@ -1,0 +1,9 @@
+# Copiá a docker-compose.override.yml (no commitear) para desarrollo rápido.
+# Docker Compose fusiona automáticamente override.yml si existe.
+#
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#
+services:
+  worker:
+    environment:
+      POLL_INTERVAL_SECONDS: "60"
