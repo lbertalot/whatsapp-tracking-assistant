@@ -4,13 +4,13 @@
 
 ## Resumen ejecutivo
 
-Este plan descompone el MVP del WhatsApp Tracking Assistant en **22 milestones** organizados en 3 tracks paralelos (Backend, Frontend, Integración) + **Onboarding producto** + milestones post-MVP (homologación Tiendanube y Meta).
+Este plan descompone el MVP del WhatsApp Tracking Assistant en **22+ milestones** en 3 tracks (Backend, Frontend, Integración) + **Onboarding** + post-MVP.
 
-- **Track Backend** (B01–B08): 8 milestones — desde fundación hasta notificaciones con idempotencia
-- **Track Frontend** (F01–F04): 4 milestones — desde login hasta panel vendible con trazabilidad
-- **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, Weraha real, WhatsApp Cloud API (**I04** envío base; **I06–I08** integración correcta con Meta: plantillas, webhook firmado, multi-tenant/tokens), observabilidad
-- **Onboarding** (ONB01): 1 milestone — vinculación obligatoria Tiendanube desde el panel (merchant ya autenticado)
-- **Post-MVP** (H01–H02): homologación Tiendanube App Store + **homologación / App Review Meta (WhatsApp)**
+- **Track Backend** (B01–B08): 8 milestones — fundación → notificaciones con idempotencia
+- **Track Frontend** (F01–F04): 4 milestones — login → panel vendible con trazabilidad
+- **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, Weraha real, WhatsApp Cloud API (**I04** base; **I06–I08** Meta: plantillas, webhook firmado, tokens por tienda), observabilidad (**I05**)
+- **Onboarding**: **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`); **ONB02** registro self-service (`POST /auth/register`, **ADR-004**)
+- **Post-MVP** (H01–H02): homologación Tiendanube App Store + homologación / App Review Meta (WhatsApp)
 
 **Metodología**: TDD estricto (Red → Green → Refactor) en cada milestone.
 
@@ -38,7 +38,10 @@ flowchart TD
 
     B04 --> I01[MS-I01<br>Tiendanube OAuth]
     I01 --> I02[MS-I02<br>Tiendanube Webhooks]
-    F02 --> ONB01[MS-ONB01<br>Onboarding TN panel]
+    F01 --> ONB02[MS-ONB02<br>Registro merchant]
+    B03 --> ONB02
+    ONB02 --> ONB01[MS-ONB01<br>Onboarding TN panel]
+    F02 --> ONB01
     I01 --> ONB01
     B03 --> ONB01
     B06 --> I03[MS-I03<br>Weraha Real]
@@ -77,6 +80,7 @@ flowchart TD
     style I07 fill:#E67E22,color:#fff
     style I08 fill:#E67E22,color:#fff
     style ONB01 fill:#9B59B6,color:#fff
+    style ONB02 fill:#9B59B6,color:#fff
     style H01 fill:#27AE60,color:#fff
     style H02 fill:#27AE60,color:#fff
 ```
@@ -510,10 +514,50 @@ flowchart TD
 
 ---
 
+### MS-ONB02: Registro merchant self-service
+
+- **Track**: Onboarding (producto — Backend + Frontend)
+- **Depende de**: MS-B03 (auth JWT, hash password), MS-B02 (modelos `Store` / `StoreUser` / `StoreSettings`)
+- **Objetivo**: El vendedor **crea su cuenta** (email + contraseña + nombre de tienda) sin credenciales fijas en `.env`; tras registrarse recibe JWT y continúa el flujo **MS-ONB01** (vincular Tiendanube). Se elimina la dependencia operativa de `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` en despliegues normales (el seed demo sigue siendo opcional para desarrollo).
+
+**Flujo esperado**:
+
+1. `GET /register` — formulario (email, contraseña, nombre de tienda).
+2. `POST /auth/register` — valida contraseña (mín. 8 caracteres), email único; crea `Store` + `StoreSettings` (`onboarding_status=pending`) + `StoreUser` (rol `owner`); responde con `LoginResponse` (JWT).
+3. Redirección del navegador a `/onboarding` si la tienda aún no tiene TN vinculado; en caso contrario a `/panel`.
+4. `GET /me` (JWT) expone datos útiles para la cabecera: `store_name`, `tiendanube_user_id` (`external_store_id`), `needs_tiendanube` (derivado de instalación TN activa + `external_store_id`).
+
+**Tasks — Backend**:
+
+- [x] Schema `RegisterRequest` + `POST /auth/register` (201/409 según email duplicado).
+- [x] Transacción atómica Store + Settings + User; `IntegrityError` → 409.
+- [x] Ampliar `UserResponse` en `GET /me` con `tiendanube_user_id`, `needs_tiendanube`.
+
+**Tasks — Frontend**:
+
+- [x] Plantilla `register.html` + `GET /register`; enlace desde `login.html` y ayuda pública.
+- [x] POST vía `fetch` a `/auth/register`, guardar JWT, redirigir según onboarding.
+
+**Tests TDD requeridos**:
+
+- [x] Registro OK → 201 + token + `store_id` en JWT decodificable
+- [x] Email duplicado → 409
+- [x] Contraseña corta → 422
+- [x] `GET /me` tras registro: `needs_tiendanube` true en modo oauth_ready
+- [x] UI: `GET /register` 200
+
+**Criterio de completitud**: un merchant nuevo puede operar el producto sin variables `SEED_USER_*` en producción; el seed demo queda documentado solo para dev/CI.
+
+**Entregable deployable**: Sí — mismo stack que login existente.
+
+**Notas**: ver **ADR-004** en `docs/ADR.md`.
+
+---
+
 ### MS-ONB01: Onboarding Tiendanube (vinculación desde el panel)
 
 - **Track**: Onboarding (producto — cruza Backend + Frontend + Integración)
-- **Depende de**: MS-B03 (auth JWT), MS-I01 (OAuth TN técnico), MS-F02 (panel existente)
+- **Depende de**: MS-B03 (auth JWT), MS-I01 (OAuth TN técnico), MS-F02 (panel existente), **MS-ONB02 recomendado** (cuenta merchant creada vía registro en lugar de seed)
 - **Objetivo**: Todo merchant que **ingresa al sitio** (login en el panel) debe **vincular su tienda de Tiendanube** a la aplicación antes de usar el producto de forma completa; el `access_token` y el `user_id` de TN quedan asociados al **mismo** `Store` que el `StoreUser` autenticado, sin crear tiendas huérfanas ni duplicar registros.
 
 **Contexto / problema hoy**: el callback de MS-I01 crea `Store` por `user_id` de TN sin relación con el usuario que ya inició sesión con otra `store_id` (p. ej. seed o registro previo). Este milestone cierra ese gap con flujo **autenticado + `state` OAuth**.
@@ -908,8 +952,8 @@ flowchart TD
 | MS-I02 | §5 (integración fuente órdenes) | §3.1 (ingesta webhooks) | Arquitectura general |
 | MS-I03 | §5 (integración Weraha) | §3.4 (weraha adapter), §10 (paso 2) | Fase 2, Polling |
 | MS-I04 | §5 (notificaciones WhatsApp), §7 (mensajes) | §3.7 (whatsapp service), §11 (prerequisitos), §10 (pasos 3-4) | Fase 3, Meta API |
-| MS-I06 | §5 (notificaciones), §7 | §3.7 (whatsapp), §11 | Meta Cloud API plantillas; **ADR-004** |
-| MS-I07 | §5 (trazabilidad notificación) | §15, §17 | Webhooks Meta, firma App Secret; **ADR-004** |
+| MS-I06 | §5 (notificaciones), §7 | §3.7 (whatsapp), §11 | Meta Cloud API plantillas; **ADR-005** |
+| MS-I07 | §5 (trazabilidad notificación) | §15, §17 | Webhooks Meta, firma App Secret; **ADR-005** |
 | MS-I08 | §5 (multi-merchant), §11 | §3.7, §5 (tenancy) | Tokens por tienda, seguridad |
 | MS-I05 | §8 (métricas clave) | §15 (métricas), §17 (observabilidad) | Observable día 1 |
 | MS-H01 | §9 (Go-To-Market canal) | — | — |

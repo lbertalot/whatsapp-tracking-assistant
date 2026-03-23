@@ -1,6 +1,6 @@
 # WhatsApp Cloud API (Meta) — configuración WTA
 
-Guía operativa alineada a **MS-I06**, **MS-I07** e **MS-I08** (`docs/MILESTONES.md`) y **ADR-004** (`docs/ADR.md`).
+Guía operativa alineada a **MS-I06**, **MS-I07** e **MS-I08** (`docs/MILESTONES.md`) y **ADR-005** (`docs/ADR.md`).
 
 ## 1. Variables de entorno (app / Docker)
 

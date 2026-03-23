@@ -30,6 +30,17 @@ def panel_page(request: Request):
     return templates.TemplateResponse(request, "orders.html")
 
 
+@router.get("/onboarding", response_class=HTMLResponse)
+def onboarding_page(request: Request):
+    return templates.TemplateResponse(request, "onboarding.html")
+
+
+@router.get("/ayuda/conectar-tiendanube", response_class=HTMLResponse)
+def help_connect_tiendanube(request: Request):
+    """Guía pública (sin login): cómo entrar al panel y qué necesita el vendedor."""
+    return templates.TemplateResponse(request, "ayuda_conectar_tiendanube.html")
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request):
     return templates.TemplateResponse(request, "settings.html")

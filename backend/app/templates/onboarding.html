@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Conectar Tiendanube{% endblock %}
+
+{% block content %}
+<div class="settings-container onboarding-flow">
+    <div class="settings-card onboarding-intro">
+        <h1>Vincular tu Tiendanube</h1>
+        <p class="onboarding-lead">
+            En pocos minutos conectamos tu tienda para traer pedidos y avisar el envío por WhatsApp.
+            Solo tenés que tener acceso de <strong>administrador</strong> a la tienda en Tiendanube.
+        </p>
+        <p class="access-url-hint" id="accessUrlHint" hidden>
+            Estás entrando desde: <code id="currentOrigin"></code>
+        </p>
+    </div>
+
+    <div class="steps-row">
+        <div class="step-card">
+            <span class="step-num">1</span>
+            <h3>Requisitos</h3>
+            <ul class="checklist checklist-compact">
+                <li>Cuenta Tiendanube activa de <strong>tu</strong> negocio.</li>
+                <li>Permisos para instalar o autorizar aplicaciones en esa tienda.</li>
+                <li>Esta ventana abierta hasta terminar (no cierres antes de volver acá).</li>
+            </ul>
+        </div>
+        <div class="step-card">
+            <span class="step-num">2</span>
+            <h3>Autorizar</h3>
+            <p class="step-desc">Pulsá el botón verde. Se abrirá Tiendanube: iniciá sesión si hace falta y aceptá los permisos.</p>
+        </div>
+        <div class="step-card">
+            <span class="step-num">3</span>
+            <h3>Listo</h3>
+            <p class="step-desc">Cuando vuelvas a esta pantalla con un mensaje de éxito, ya podés usar el panel de órdenes.</p>
+        </div>
+    </div>
+
+    <div class="settings-card">
+        <div id="alertSuccess" class="alert alert-success" style="display:none;"></div>
+        <div id="alertError" class="alert alert-error" style="display:none;"></div>
+        <div id="alertConfig" class="alert alert-error" style="display:none;"></div>
+
+        <div class="settings-actions onboarding-cta">
+            <button type="button" class="btn btn-primary btn-lg" id="btnConnect">Conectar con Tiendanube</button>
+            <a href="/panel" class="btn btn-outline" id="linkPanel" style="display:none;">Ir al panel de órdenes</a>
+        </div>
+        <p class="settings-hint">
+            ¿Primera vez? <a href="/ayuda/conectar-tiendanube" target="_blank" rel="noopener">Guía paso a paso (abre en otra pestaña)</a>
+        </p>
+    </div>
+
+    <div class="settings-card">
+        <h3 class="collapsible-title">Si algo falla o pedís ayuda a soporte</h3>
+        <p class="settings-hint">Copiá estos datos para quien configura la app en el portal de socios de Tiendanube.</p>
+        <div class="url-copy-block">
+            <label>URL de retorno (callback OAuth)</label>
+            <div class="copy-row">
+                <code id="txtOAuthCallback" class="copy-target">—</code>
+                <button type="button" class="btn btn-sm btn-outline" id="btnCopyOAuth">Copiar</button>
+            </div>
+        </div>
+        <div class="url-copy-block">
+            <label>URL de webhooks (órdenes)</label>
+            <div class="copy-row">
+                <code id="txtWebhookUrl" class="copy-target">—</code>
+                <button type="button" class="btn btn-sm btn-outline" id="btnCopyWebhook">Copiar</button>
+            </div>
+        </div>
+        <details class="faq-item" style="margin-top:1rem;">
+            <summary>No abre Tiendanube o «no se puede acceder al sitio»</summary>
+            <p class="help-muted">Si estás en otra computadora o celular, <code>localhost</code> no sirve: necesitás la dirección que te dio soporte (IP o sitio en internet). <a href="/ayuda/conectar-tiendanube">Más ayuda</a>.</p>
+        </details>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    if (!requireAuth()) return;
+
+    var co = document.getElementById('currentOrigin');
+    var hint = document.getElementById('accessUrlHint');
+    if (co && window.location.origin) {
+        co.textContent = window.location.origin;
+        if (hint) hint.hidden = false;
+    }
+
+    function copyText(text) {
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+        return Promise.resolve();
+    }
+
+    function wireCopy(btnId, elId) {
+        var b = document.getElementById(btnId);
+        var el = document.getElementById(elId);
+        if (b && el) b.addEventListener('click', function() {
+            copyText(el.textContent).then(function() {
+                b.textContent = 'Copiado';
+                setTimeout(function() { b.textContent = 'Copiar'; }, 2000);
+            });
+        });
+    }
+    wireCopy('btnCopyOAuth', 'txtOAuthCallback');
+    wireCopy('btnCopyWebhook', 'txtWebhookUrl');
+
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('success') === '1') {
+        var ok = document.getElementById('alertSuccess');
+        ok.textContent = 'Tiendanube conectada correctamente. Ya podés usar el panel.';
+        ok.style.display = 'block';
+        document.getElementById('linkPanel').style.display = 'inline-flex';
+    }
+    var err = params.get('error');
+    if (err) {
+        var el = document.getElementById('alertError');
+        var map = {
+            'invalid_state': 'El enlace expiró o es inválido. Volvé a pulsar «Conectar con Tiendanube».',
+            'unknown_store': 'No se encontró tu tienda. Cerrá sesión e iniciá de nuevo.',
+            'store_conflict': 'Esta cuenta Tiendanube no coincide con la tienda ya vinculada. Si cambiaste de cuenta, contactá soporte.',
+            'token_exchange': 'Tiendanube rechazó la autorización. Intentá de nuevo; si persiste, pedí que revisen la configuración de la app.',
+            'tn_not_configured': 'El sistema aún no tiene configuradas las credenciales de Tiendanube. Contactá a soporte.'
+        };
+        el.textContent = map[err] || ('Error: ' + err);
+        el.style.display = 'block';
+    }
+
+    fetch('/api/onboarding/status', { headers: authHeaders() })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(s) {
+            var oauthEl = document.getElementById('txtOAuthCallback');
+            var whEl = document.getElementById('txtWebhookUrl');
+            if (oauthEl && s.oauth_callback_url) oauthEl.textContent = s.oauth_callback_url;
+            if (whEl && s.webhook_public_url) whEl.textContent = s.webhook_public_url;
+
+            if (!s.tiendanube_app_configured) {
+                var ac = document.getElementById('alertConfig');
+                ac.innerHTML = 'Falta configurar Tiendanube en el servidor (credenciales de la app). ' +
+                    'Hasta que no esté listo, el botón de conectar no funcionará. Enviá esta pantalla o las URLs de abajo a soporte.';
+                ac.style.display = 'block';
+                var btn = document.getElementById('btnConnect');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.title = 'Configuración incompleta en el servidor';
+                }
+            }
+
+            if (!s.needs_tiendanube && params.get('success') !== '1' && !params.get('error')) {
+                window.location.href = '/panel';
+            }
+        })
+        .catch(function() {});
+
+    document.getElementById('btnConnect').addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true;
+        fetch('/api/integrations/tiendanube/install-url', { headers: authHeaders() })
+            .then(function(r) {
+                if (r.status === 401) { clearToken(); window.location.href = '/login'; return; }
+                if (r.status === 503) {
+                    return r.json().then(function(body) {
+                        var d = body && body.detail;
+                        var msg = Array.isArray(d) ? d.join(' ') : (d || 'Servicio no disponible');
+                        throw new Error(msg);
+                    });
+                }
+                return r.json();
+            })
+            .then(function(data) {
+                if (data && data.url) window.location.href = data.url;
+                else throw new Error('Sin URL');
+            })
+            .catch(function(e) {
+                var ae = document.getElementById('alertError');
+                ae.textContent = (e && e.message) ? e.message : 'No se pudo iniciar la conexión. Reintentá o contactá soporte.';
+                ae.style.display = 'block';
+                btn.disabled = false;
+            });
+    });
+})();
+</script>
+{% endblock %}

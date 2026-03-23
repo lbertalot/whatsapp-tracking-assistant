@@ -51,3 +51,5 @@ class UserResponse(BaseModel):
     store_id: int
     role: str
     store_name: Optional[str] = None
+    tiendanube_user_id: Optional[str] = None
+    needs_tiendanube: bool = True
