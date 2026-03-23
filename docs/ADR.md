@@ -436,7 +436,28 @@ Los webhooks de TN para `order/*` solo incluyen `store_id`, `event` e `id` de la
 
 ---
 
-## ADR-004 — WhatsApp Cloud API (Meta): plantillas, errores Graph y webhook
+## ADR-004 — Registro merchant self-service (`POST /auth/register`)
+
+### Contexto
+
+Depender de `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` en `.env` para “el usuario del panel” no escala a producción ni refleja el flujo real del vendedor; además genera confusión en Docker/logs cuando esas variables faltan o no coinciden con el seed.
+
+### Decisión
+
+1. **`POST /auth/register`**: body JSON con `email`, `password` (mín. 8 caracteres) y `store_name` o `storeName` (2–150 caracteres); crea en una transacción `Store` (sin `external_store_id` hasta OAuth), `StoreSettings` con `onboarding_status=pending`, `StoreUser` con `role=owner`; responde **201** + `LoginResponse` (JWT).
+2. **Email duplicado**: **409** con mensaje claro; `IntegrityError` en commit también se mapea a 409.
+3. **UI**: `GET /register` (Jinja); enlaces desde login y ayuda pública; tras registro, redirigir a `/onboarding` si `needs_tiendanube`.
+4. **`GET /me`**: expone `tiendanube_user_id` (`Store.external_store_id`) y `needs_tiendanube` (misma regla que `GET /api/onboarding/status`: instalación TN activa con token).
+5. **Seed demo**: credenciales por defecto definidas en `scripts/seed_demo_data.py`; `SEED_USER_*` solo si hace falta otro email/contraseña para dev/CI.
+
+### Consecuencias
+
+* Milestone **MS-ONB02** en `docs/MILESTONES.md`; alineado con **MS-ONB01** (OAuth después de tener cuenta).
+* Despliegue normal sin usuario “mágico” en variables de entorno; el demo técnico sigue disponible vía script.
+
+---
+
+## ADR-005 — WhatsApp Cloud API (Meta): plantillas, errores Graph y webhook
 
 ### Contexto
 
@@ -444,19 +465,16 @@ El envío mínimo a `/{phone-number-id}/messages` sin `template.components` fall
 
 ### Decisión
 
-1. **Plantillas con parámetros**: si `send_template_message` recibe `params`, se arma `template.components` con un bloque `body` y parámetros `type: text` en orden estable: `order_id` primero, luego el resto de claves alfabéticamente (alineado a plantillas shipping del MVP).
-2. **Errores HTTP**: no depender solo de `raise_for_status`; para `status_code >= 400` parsear JSON `error.code` / `message` y propagar `Retry-After` en el mensaje cuando exista.
-3. **Webhook** (`GET` + `POST /webhooks/whatsapp`):
-   - `GET`: `hub.verify_token` debe coincidir con `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
-   - `POST`: cuerpo raw + validación HMAC-SHA256 con `META_APP_SECRET` (mismo secret que usa Meta para firmar).
-4. **Trazabilidad de entrega**: actualizar `NotificationAttempt` por `provider_message_id == wamid` con `provider_delivery_status` y timestamp del payload `statuses`.
-5. **Credenciales por tienda (MS-I08)**: `store_settings.whatsapp_access_token` + `whatsapp_phone_number_id` + idioma; `WhatsAppService.resolve_for_store`; fallback global opcional `WHATSAPP_ALLOW_GLOBAL_FALLBACK`.
+1. **Plantillas con parámetros**: si `send_template_message` recibe `params`, se arma `template.components` con un bloque `body` y parámetros `type: text` en orden estable: `order_id` primero, luego el resto de claves alfabéticamente. Flag `whatsapp_include_body_params` para plantillas sin variables.
+2. **Errores HTTP**: parsear JSON `error.code` / `message`; propagar `Retry-After`; heurística `graph_send_error_may_benefit_from_retry` para no reintentar errores permanentes.
+3. **Webhook** (`GET` + `POST /webhooks/whatsapp`): verify token + firma `META_APP_SECRET` en POST.
+4. **Trazabilidad de entrega**: `NotificationAttempt` con `provider_delivery_status` correlacionado por `wamid`.
+5. **Credenciales por tienda (MS-I08)**: `store_settings` + `resolve_for_store`; fallback opcional `WHATSAPP_ALLOW_GLOBAL_FALLBACK`; `whatsapp_enabled` en el motor de notificaciones.
 
 ### Consecuencias
 
-* Migraciones Alembic: columnas en `notification_attempts` y `store_settings`.
-* Multi-tenant: en producción desactivar fallback y obligar token por tienda vía `PUT /api/settings` (ver `docs/WHATSAPP_META.md`).
-* Configurar en Meta la URL pública HTTPS del webhook y el verify token; nunca commitear `META_APP_SECRET`.
+* Migraciones Alembic en `notification_attempts` y `store_settings`.
+* Ver `docs/WHATSAPP_META.md` y `docs/META_GO_LIVE_CHECKLIST.md`.
 
 ---
 

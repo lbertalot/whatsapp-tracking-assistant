@@ -89,6 +89,7 @@
 (function() {
     if (!requireAuth()) return;
 
+    function runPanel() {
     let currentPage = 1;
     const pageSize = 20;
 
@@ -267,6 +268,18 @@
 
     loadStats();
     loadOrders();
+    }
+
+    fetch('/api/onboarding/status', { headers: authHeaders() })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(s) {
+            if (s.needs_tiendanube) {
+                window.location.href = '/onboarding';
+                return;
+            }
+            runPanel();
+        })
+        .catch(function() { runPanel(); });
 })();
 </script>
 {% endblock %}

@@ -24,6 +24,7 @@ docker compose up --build
 docker compose run --rm web python scripts/seed_demo_data.py
 # Por defecto el seed usa SEED_TN_LINK_MODE=oauth_ready (panel pide vincular TN real).
 # Panel demo sin OAuth: SEED_TN_LINK_MODE=demo docker compose run --rm web python scripts/seed_demo_data.py
+# Cuenta nueva sin seed: abrí http://localhost:8000/register (MS-ONB02).
 ```
 
 Detalle: [docs/DOCKER.md](docs/DOCKER.md) · WhatsApp/Meta: [docs/WHATSAPP_META.md](docs/WHATSAPP_META.md)

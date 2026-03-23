@@ -7,7 +7,7 @@
     <div class="login-card">
         <h1 class="login-title">Iniciar sesión</h1>
         <p class="login-subtitle">Accedé a tu panel de seguimiento de envíos</p>
-        <p class="login-help-link"><a href="/register">Crear cuenta</a></p>
+        <p class="login-help-link"><a href="/register">Crear cuenta</a> · <a href="/ayuda/conectar-tiendanube">¿Cómo conectar mi Tiendanube?</a></p>
 
         <div class="alert alert-error" id="loginError" style="display:none;"></div>
 
@@ -57,6 +57,18 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 
         const data = await resp.json();
         setToken(data.access_token);
+        try {
+            const st = await fetch('/api/onboarding/status', {
+                headers: { 'Authorization': 'Bearer ' + data.access_token }
+            });
+            if (st.ok) {
+                const o = await st.json();
+                if (o.needs_tiendanube) {
+                    window.location.href = '/onboarding';
+                    return;
+                }
+            }
+        } catch (e) {}
         window.location.href = '/panel';
     } catch (err) {
         errEl.textContent = err.message;
@@ -67,7 +79,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 });
 
 if (getToken()) {
-    window.location.href = '/panel';
+    fetch('/api/onboarding/status', { headers: authHeaders() })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(o) {
+            if (o.needs_tiendanube) window.location.href = '/onboarding';
+            else window.location.href = '/panel';
+        })
+        .catch(function() { window.location.href = '/panel'; });
 }
 </script>
 {% endblock %}

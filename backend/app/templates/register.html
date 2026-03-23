@@ -7,7 +7,7 @@
     <div class="login-card">
         <h1 class="login-title">Crear cuenta</h1>
         <p class="login-subtitle">Registrá tu tienda y luego vinculá Tiendanube</p>
-        <p class="login-help-link"><a href="/login">¿Ya tenés cuenta? Iniciar sesión</a></p>
+        <p class="login-help-link"><a href="/login">¿Ya tenés cuenta? Iniciar sesión</a> · <a href="/ayuda/conectar-tiendanube">Ayuda Tiendanube</a></p>
 
         <div class="alert alert-error" id="registerError" style="display:none;"></div>
 
@@ -82,6 +82,18 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
         const data = await resp.json();
         setToken(data.access_token);
+        try {
+            const st = await fetch('/api/onboarding/status', {
+                headers: { 'Authorization': 'Bearer ' + data.access_token }
+            });
+            if (st.ok) {
+                const o = await st.json();
+                if (o.needs_tiendanube) {
+                    window.location.href = '/onboarding';
+                    return;
+                }
+            }
+        } catch (e) {}
         window.location.href = '/panel';
     } catch (err) {
         errEl.textContent = err.message;
@@ -92,7 +104,13 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 });
 
 if (getToken()) {
-    window.location.href = '/panel';
+    fetch('/api/onboarding/status', { headers: authHeaders() })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(o) {
+            if (o.needs_tiendanube) window.location.href = '/onboarding';
+            else window.location.href = '/panel';
+        })
+        .catch(function() { window.location.href = '/panel'; });
 }
 </script>
 {% endblock %}

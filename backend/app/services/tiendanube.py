@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -16,23 +17,27 @@ class TiendanubeService:
         self.api_url = settings.TIENDANUBE_API_URL
         self.base_url = settings.APP_BASE_URL
 
-    def get_auth_url(self) -> str:
-        return (
-            settings.TIENDANUBE_AUTH_URL.format(app_id=self.app_id)
-        )
+    def get_auth_url(self, state: Optional[str] = None) -> str:
+        base = settings.TIENDANUBE_AUTH_URL.format(app_id=self.app_id)
+        if not state:
+            return base
+        sep = "&" if "?" in base else "?"
+        return f"{base}{sep}state={quote(state, safe='')}"
 
     def get_callback_url(self) -> str:
         return f"{self.base_url}/integrations/tiendanube/callback"
 
     def exchange_code(self, code: str) -> dict:
+        # Tiendanube acepta JSON en POST /apps/authorize/token (documentación / ejemplos oficiales)
         resp = httpx.post(
             self.token_url,
-            data={
+            json={
                 "client_id": self.app_id,
                 "client_secret": self.client_secret,
                 "grant_type": "authorization_code",
                 "code": code,
             },
+            headers={"Content-Type": "application/json"},
             timeout=15.0,
         )
         resp.raise_for_status()
@@ -43,6 +48,28 @@ class TiendanubeService:
             f"{self.api_url}/{user_id}/store",
             headers={"Authentication": f"bearer {access_token}"},
             timeout=10.0,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def fetch_order(
+        self,
+        user_id: int,
+        order_id: int,
+        access_token: str,
+        *,
+        aggregates: Optional[str] = None,
+        timeout: float = 2.5,
+    ) -> dict:
+        """GET /{user_id}/orders/{order_id} — usar aggregates=fulfillment_orders para tracking."""
+        params = {}
+        if aggregates:
+            params["aggregates"] = aggregates
+        resp = httpx.get(
+            f"{self.api_url}/{user_id}/orders/{order_id}",
+            headers={"Authentication": f"bearer {access_token}"},
+            params=params or None,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return resp.json()

@@ -44,10 +44,12 @@ Regenera la tienda **Tienda Demo Paraguay**, usuario de panel y ~10 órdenes (TN
 docker compose run --rm web python scripts/seed_demo_data.py
 ```
 
-Credenciales por defecto (sobreescribibles con `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` en `.env.docker`):
+Credenciales del usuario demo del seed (definidas por defecto **en el script**; opcionalmente sobreescribibles con `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` solo si hace falta otro email para el wipe o otra contraseña):
 
 - **Email:** `demo@tiendademo.py`
 - **Contraseña:** `DemoWTA2026!`
+
+En producción el merchant crea cuenta vía **`/register`** (MS-ONB02); no hace falta poner `SEED_USER_*` en `.env`.
 
 Variables del seed (ver docstring en `scripts/seed_demo_data.py`):
 
@@ -55,7 +57,7 @@ Variables del seed (ver docstring en `scripts/seed_demo_data.py`):
 - **`demo`**: comportamiento anterior (panel “ya vinculado” con `external_store_id` ficticio y token placeholder) para enseñar métricas sin OAuth.
 - **`SEED_STORE_EXTERNAL_ID`**: opcional; en `demo` por defecto `demo-paraguay-tn`; en `oauth_ready` podés fijar un `user_id` TN conocido (staging).
 
-El seed **borra y recrea** la tienda asociada al usuario seed (mismo `SEED_USER_EMAIL` en cada corrida).
+El seed **borra y recrea** la tienda asociada al usuario demo (mismo email en cada corrida: default del script o el que definas en `SEED_USER_EMAIL`).
 
 ## Migraciones solo (sin levantar web)
 
@@ -112,7 +114,7 @@ docker compose down -v
 - **El worker arranca antes que las migraciones:** el `worker` depende de `web` con `condition: service_healthy`; `web` corre Alembic antes de exponer `/health`.
 - **Error de conexión a Postgres:** esperá a que el healthcheck de `postgres` esté en verde (`docker compose ps`).
 - **Sin credenciales de Meta:** con `APP_ENV=development` y sin `WERAHA_API_URL` HTTP, el worker usa mocks (comportamiento alineado al desarrollo local documentado en el código).
-- **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/ADR.md` (ADR-004).
+- **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/ADR.md` (ADR-005).
 
 ## Imagen
 
