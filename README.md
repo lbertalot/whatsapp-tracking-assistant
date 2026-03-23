@@ -84,6 +84,7 @@ tests/          # pytest
 - [RFC.md](docs/RFC.md) — Diseño técnico
 - [ADR.md](docs/ADR.md) — Decisiones de arquitectura
 - [MILESTONES.md](docs/MILESTONES.md) — Hitos, estado de implementación y tests
+- [PILOT_READINESS.md](docs/PILOT_READINESS.md) — Piloto tienda real (TN + WhatsApp) y DoD
 - [WHATSAPP_META.md](docs/WHATSAPP_META.md) — Meta Cloud API, env vars y panel
 - [META_GO_LIVE_CHECKLIST.md](docs/META_GO_LIVE_CHECKLIST.md) — Checklist antes de producción (Meta)
 - [DOCKER.md](docs/DOCKER.md) — Ejecución local con Docker (paridad Heroku)
