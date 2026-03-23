@@ -16,6 +16,10 @@ pytest tests/ -q
 - **Black** + **isort** (perfil black), longitud de línea **100** (`pyproject.toml`).
 - **Flake8** con reglas en `.flake8` (imports tras `os.environ` en `conftest` / scripts: `E402` ignorado donde aplica).
 
+## Dependencias delicadas
+
+- **`bcrypt`**: no subir a **5.x** sin reemplazar o actualizar **passlib**; hoy `passlib[bcrypt]` 1.7.x falla con bcrypt 5 en CI y en local. Dependabot tiene `ignore` para major de bcrypt (ver `.github/dependabot.yml`).
+
 ## CI/CD (GitHub Actions)
 
 Workflows en `.github/workflows/`:

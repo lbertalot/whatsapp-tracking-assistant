@@ -14,6 +14,10 @@ updates:
       - "dependencies"
       - "python"
     versioning-strategy: "increase-if-necessary"
+    # passlib 1.7.x + bcrypt 5 rompe en runtime (ValueError en backend bcrypt / tests).
+    ignore:
+      - dependency-name: "bcrypt"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -22,6 +26,10 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # Mantener línea base 3.11 del proyecto; saltos tipo 3.14 requieren validación manual.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

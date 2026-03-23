@@ -8,6 +8,7 @@ pydantic-settings
 email-validator>=2.0.0
 python-jose[cryptography]
 passlib[bcrypt]
+# Quedar en 4.x: passlib 1.7.x no es compatible con bcrypt 5 (falla al cargar el backend).
 bcrypt==4.0.1
 phonenumbers
 httpx
