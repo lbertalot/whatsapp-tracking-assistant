@@ -14,7 +14,10 @@ from backend.app.services.weraha import WerahaAdapter
 
 logger = logging.getLogger(__name__)
 
-_use_mock = settings.APP_ENV in ("testing", "development") and not settings.WERAHA_API_URL.startswith("http")
+_use_mock = settings.APP_ENV in (
+    "testing",
+    "development",
+) and not settings.WERAHA_API_URL.startswith("http")
 
 weraha_adapter = WerahaAdapter()
 # WhatsApp: credenciales por tienda (resolve_for_store) o fallback global según config

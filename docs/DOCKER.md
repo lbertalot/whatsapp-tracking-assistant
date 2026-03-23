@@ -113,7 +113,7 @@ docker compose down -v
 - **`GET /ayuda/...` u otra ruta nueva responde `{"detail":"Not Found"}`:** el contenedor sigue con una imagen antigua; hacé **rebuild** del servicio `web` (ver sección arriba).
 - **El worker arranca antes que las migraciones:** el `worker` depende de `web` con `condition: service_healthy`; `web` corre Alembic antes de exponer `/health`.
 - **Error de conexión a Postgres:** esperá a que el healthcheck de `postgres` esté en verde (`docker compose ps`).
-- **Sin credenciales de Meta:** con `APP_ENV=development` y sin `WERAHA_API_URL` HTTP, el worker usa mocks (comportamiento alineado al desarrollo local documentado en el código).
+- **Weraha en dev:** sin `WERAHA_API_URL` HTTP real (o URL placeholder `https://mock`), el adapter usa respuesta mock; no confundir con credenciales Meta/WhatsApp.
 - **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/ADR.md` (ADR-005).
 
 ## Imagen

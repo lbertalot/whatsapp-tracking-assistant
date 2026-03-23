@@ -3,9 +3,9 @@ import uuid
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.models.store import Store, StoreSettings
-from backend.app.models.order import Order
 from backend.app.models.notification import NotificationAttempt
+from backend.app.models.order import Order
+from backend.app.models.store import Store, StoreSettings
 
 
 def _setup(session, **order_overrides):
@@ -87,7 +87,11 @@ class TestRetryAndIdempotency:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return {"success": False, "error": "transient", "error_message": "Temporary failure"}
+                return {
+                    "success": False,
+                    "error": "transient",
+                    "error_message": "Temporary failure",
+                }
             return {"success": True, "message_id": "wamid.retry_ok"}
 
         WhatsAppService.send_template_message = fail_then_succeed

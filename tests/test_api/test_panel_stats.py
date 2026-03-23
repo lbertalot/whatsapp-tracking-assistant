@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 
-from tests.conftest import TestingSession
 from backend.app.core.security import create_access_token, hash_password
 from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreSettings
 from backend.app.models.user import StoreUser
+from tests.conftest import TestingSession
 
 
 def _setup_env(db):
@@ -17,19 +17,45 @@ def _setup_env(db):
     settings = StoreSettings(store_id=store.id, onboarding_status="active")
     db.add(settings)
 
-    user = StoreUser(store_id=store.id, email=f"stats-{uid}@test.com", password_hash=hash_password("pw"))
+    user = StoreUser(
+        store_id=store.id,
+        email=f"stats-{uid}@test.com",
+        password_hash=hash_password("pw"),
+    )
     db.add(user)
     db.flush()
 
-    db.add_all([
-        Order(store_id=store.id, external_id="O1", current_status="in_transit", notification_status="sent",
-              first_notification_at=datetime(2026, 1, 1), normalized_phone="+595981000001"),
-        Order(store_id=store.id, external_id="O2", current_status="in_transit", notification_status="failed",
-              normalized_phone="+595981000002"),
-        Order(store_id=store.id, external_id="O3", current_status="in_transit", invalid_phone=True),
-        Order(store_id=store.id, external_id="O4", current_status="pending_tracking",
-              normalized_phone="+595981000004"),
-    ])
+    db.add_all(
+        [
+            Order(
+                store_id=store.id,
+                external_id="O1",
+                current_status="in_transit",
+                notification_status="sent",
+                first_notification_at=datetime(2026, 1, 1),
+                normalized_phone="+595981000001",
+            ),
+            Order(
+                store_id=store.id,
+                external_id="O2",
+                current_status="in_transit",
+                notification_status="failed",
+                normalized_phone="+595981000002",
+            ),
+            Order(
+                store_id=store.id,
+                external_id="O3",
+                current_status="in_transit",
+                invalid_phone=True,
+            ),
+            Order(
+                store_id=store.id,
+                external_id="O4",
+                current_status="pending_tracking",
+                normalized_phone="+595981000004",
+            ),
+        ]
+    )
     db.commit()
 
     token = create_access_token(user_id=user.id, store_id=store.id)
@@ -50,8 +76,15 @@ def test_panel_stats_scoped_by_store(client):
         store2 = Store(name=f"Other {uid2}", external_store_id=f"other-{uid2}", status="active")
         db.add(store2)
         db.flush()
-        db.add(Order(store_id=store2.id, external_id="X1", current_status="delivered",
-                     notification_status="sent", first_notification_at=datetime(2026, 1, 1)))
+        db.add(
+            Order(
+                store_id=store2.id,
+                external_id="X1",
+                current_status="delivered",
+                notification_status="sent",
+                first_notification_at=datetime(2026, 1, 1),
+            )
+        )
         db.commit()
 
         resp = client.get("/panel/stats", headers={"Authorization": f"Bearer {token}"})
@@ -74,8 +107,15 @@ def test_panel_stats_response_schema(client):
         resp = client.get("/panel/stats", headers={"Authorization": f"Bearer {token}"})
         data = resp.json()
 
-        for key in ["total_orders", "orders_notified", "pct_notified",
-                     "orders_errors", "pct_errors", "orders_invalid_phone", "pct_invalid_phone"]:
+        for key in [
+            "total_orders",
+            "orders_notified",
+            "pct_notified",
+            "orders_errors",
+            "pct_errors",
+            "orders_invalid_phone",
+            "pct_invalid_phone",
+        ]:
             assert key in data, f"Missing key: {key}"
 
         assert data["pct_notified"] == 25.0

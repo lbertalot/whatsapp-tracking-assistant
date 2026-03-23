@@ -1,9 +1,9 @@
 import uuid
 
-from tests.conftest import TestingSession
 from backend.app.core.security import create_access_token, hash_password
 from backend.app.models.store import Store, StoreSettings
 from backend.app.models.user import StoreUser
+from tests.conftest import TestingSession
 
 
 def _setup_env(db):
@@ -23,7 +23,11 @@ def _setup_env(db):
     )
     db.add(settings)
 
-    user = StoreUser(store_id=store.id, email=f"set-{uid}@test.com", password_hash=hash_password("pw"))
+    user = StoreUser(
+        store_id=store.id,
+        email=f"set-{uid}@test.com",
+        password_hash=hash_password("pw"),
+    )
     db.add(user)
     db.flush()
     db.commit()
@@ -66,7 +70,10 @@ def test_update_settings_templates(client):
         resp = client.put(
             "/api/settings",
             headers={"Authorization": f"Bearer {token}"},
-            json={"template_in_transit": "custom_transit_v2", "template_delivered": "custom_delivered_v2"},
+            json={
+                "template_in_transit": "custom_transit_v2",
+                "template_delivered": "custom_delivered_v2",
+            },
         )
         assert resp.status_code == 200
         data = resp.json()

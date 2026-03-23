@@ -13,6 +13,9 @@ Guía operativa alineada a **MS-I06**, **MS-I07** e **MS-I08** (`docs/MILESTONES
 | `META_APP_SECRET` | Firma del webhook `POST /webhooks/whatsapp` |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token arbitrario; debe coincidir con el configurado en el portal de Meta (suscripción webhook) |
 | `APP_BASE_URL` | Origen público HTTPS (callback webhook: `{APP_BASE_URL}/webhooks/whatsapp`) |
+| `APP_ENV`, `LOG_LEVEL` | Entorno y nivel de log del proceso (ver `Settings`) |
+
+**Observabilidad (MVP):** `GET /health`, `GET /ready` y `GET /metrics` existen y **no** requieren JWT; `/metrics` devuelve agregados **globales** de órdenes (no por tienda). Para stats por tienda autenticada usá `GET /panel/stats`. Proteger `/metrics` en producción pública queda pendiente (MS-I05).
 
 ## 2. Credenciales por tienda (MS-I08)
 

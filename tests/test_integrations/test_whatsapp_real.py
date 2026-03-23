@@ -1,7 +1,4 @@
-from unittest.mock import patch, MagicMock
-
-import httpx
-import pytest
+from unittest.mock import MagicMock, patch
 
 from backend.app.services.whatsapp import WhatsAppService
 
@@ -39,7 +36,11 @@ class TestWhatsAppReal:
         mock_resp.status_code = 400
         mock_resp.headers = {}
         mock_resp.json.return_value = {
-            "error": {"code": 131047, "message": "Re-engagement message", "error_subcode": 2494010}
+            "error": {
+                "code": 131047,
+                "message": "Re-engagement message",
+                "error_subcode": 2494010,
+            }
         }
 
         with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):

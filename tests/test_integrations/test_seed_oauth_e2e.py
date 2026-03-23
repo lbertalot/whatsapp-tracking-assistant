@@ -11,10 +11,10 @@ pytestmark = pytest.mark.skip(
     reason="Requiere MS-ONB01 (routers /api/onboarding, callback TN) no incluidos en esta rama"
 )
 
-import backend.app.db.session as db_session_mod
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
+import backend.app.db.session as db_session_mod
 from backend.app.core.security import create_access_token, create_tn_oauth_state
 from backend.app.db.session import get_db
 from backend.app.main import app
@@ -27,11 +27,13 @@ from backend.app.models.user import StoreUser
 def _delete_store_cascade(session, store_id: int) -> None:
     order_ids = [r[0] for r in session.query(Order.id).filter(Order.store_id == store_id).all()]
     if order_ids:
-        session.query(NotificationAttempt).filter(NotificationAttempt.order_id.in_(order_ids)).delete(
-            synchronize_session=False
-        )
+        session.query(NotificationAttempt).filter(
+            NotificationAttempt.order_id.in_(order_ids)
+        ).delete(synchronize_session=False)
         session.query(Order).filter(Order.store_id == store_id).delete(synchronize_session=False)
-    session.query(StoreUser).filter(StoreUser.store_id == store_id).delete(synchronize_session=False)
+    session.query(StoreUser).filter(StoreUser.store_id == store_id).delete(
+        synchronize_session=False
+    )
     session.query(StoreSettings).filter(StoreSettings.store_id == store_id).delete(
         synchronize_session=False
     )
@@ -128,7 +130,11 @@ def test_seed_oauth_ready_callback_links_real_tn_user(seed_oauth_engine_client):
     mock_response.raise_for_status = MagicMock()
 
     with patch("backend.app.services.tiendanube.httpx.post", return_value=mock_response):
-        with patch.object(integ_mod.tn_service, "fetch_store_info", return_value={"name": "Berta Shop"}):
+        with patch.object(
+            integ_mod.tn_service,
+            "fetch_store_info",
+            return_value={"name": "Berta Shop"},
+        ):
             with patch.object(integ_mod.tn_service, "register_webhooks", return_value=None):
                 r = client.get(
                     f"/integrations/tiendanube/callback?code=seed-oauth-code&state={state}",
@@ -142,11 +148,7 @@ def test_seed_oauth_ready_callback_links_real_tn_user(seed_oauth_engine_client):
     session.expire_all()
     st = session.query(Store).filter(Store.id == store.id).first()
     assert st.external_store_id == str(tn_uid)
-    inst = (
-        session.query(StoreInstallation)
-        .filter(StoreInstallation.store_id == store.id)
-        .first()
-    )
+    inst = session.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).first()
     assert inst.access_token == "real-tn-token"
     assert inst.is_active is True
 
@@ -157,8 +159,6 @@ def test_seed_oauth_ready_callback_links_real_tn_user(seed_oauth_engine_client):
 
 def test_seed_oauth_ready_store_conflict_if_external_mismatch(seed_oauth_engine_client):
     """Regresión: external_store_id previo distinto al user_id TN → store_conflict."""
-    from backend.app.api import integrations as integ_mod
-
     client, session, store, user, _email = seed_oauth_engine_client
     store.external_store_id = "111"
     session.commit()

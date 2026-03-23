@@ -1,9 +1,9 @@
 import uuid
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.db.session import get_db
 from backend.app.main import app
@@ -108,6 +108,7 @@ def test_callback_creates_store(tn_env):
     assert inst.is_active is True
 
     from backend.app.models.store import StoreSettings
+
     session.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).delete()
     session.query(StoreSettings).filter(StoreSettings.store_id == store.id).delete()
     session.query(Store).filter(Store.id == store.id).delete()
@@ -139,13 +140,12 @@ def test_callback_idempotent(tn_env):
     assert len(stores) == 1
 
     inst = (
-        session.query(StoreInstallation)
-        .filter(StoreInstallation.store_id == stores[0].id)
-        .first()
+        session.query(StoreInstallation).filter(StoreInstallation.store_id == stores[0].id).first()
     )
     assert inst.access_token == "tok-second"
 
     from backend.app.models.store import StoreSettings
+
     session.query(StoreInstallation).filter(StoreInstallation.store_id == stores[0].id).delete()
     session.query(StoreSettings).filter(StoreSettings.store_id == stores[0].id).delete()
     session.query(Store).filter(Store.id == stores[0].id).delete()

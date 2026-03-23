@@ -84,7 +84,10 @@ class TiendanubeService:
                         "Authentication": f"bearer {access_token}",
                         "Content-Type": "application/json",
                     },
-                    json={"event": event, "url": f"{self.base_url}/webhooks/tiendanube"},
+                    json={
+                        "event": event,
+                        "url": f"{self.base_url}/webhooks/tiendanube",
+                    },
                     timeout=10.0,
                 )
             except httpx.HTTPError as e:

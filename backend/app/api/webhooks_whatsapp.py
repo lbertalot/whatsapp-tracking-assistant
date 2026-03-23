@@ -37,7 +37,10 @@ def whatsapp_webhook_verify(
 
 
 def _apply_status_updates(db: Session, payload: dict) -> int:
-    """Recorre entry/changes/value/statuses y actualiza NotificationAttempt por wamid. Retorna cantidad actualizada."""
+    """Actualiza NotificationAttempt por wamid según statuses del payload Meta.
+
+    Retorna la cantidad de filas actualizadas.
+    """
     updated = 0
     if payload.get("object") != "whatsapp_business_account":
         return 0

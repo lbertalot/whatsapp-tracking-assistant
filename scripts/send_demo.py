@@ -2,8 +2,9 @@
 One-off script: send a real WhatsApp message to a test number
 and update the order state in the Heroku Postgres DB.
 """
-import sys
+
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -14,8 +15,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from backend.app.db.session import SessionLocal
-from backend.app.models.order import Order
 from backend.app.models.notification import NotificationAttempt
+from backend.app.models.order import Order
 from backend.app.services.whatsapp import WhatsAppService
 
 TARGET_PHONE = "+5491112345678"
@@ -40,8 +41,10 @@ def main():
         db.close()
         return
 
-    print(f"Orden seleccionada: id={order.id}, external_id={order.external_id}, "
-          f"cliente={order.customer_name}, telefono_actual={order.normalized_phone}")
+    print(
+        f"Orden seleccionada: id={order.id}, external_id={order.external_id}, "
+        f"cliente={order.customer_name}, telefono_actual={order.normalized_phone}"
+    )
 
     order.normalized_phone = TARGET_PHONE
     order.invalid_phone = False
@@ -103,12 +106,12 @@ def main():
     db.close()
 
     if result["success"]:
-        print(f"\nMensaje enviado exitosamente.")
+        print("\nMensaje enviado exitosamente.")
         print(f"  message_id: {result['message_id']}")
         print(f"  Revisa tu WhatsApp en {TARGET_PHONE}")
-        print(f"  Revisa el panel: https://your-app.herokuapp.com/panel")
+        print("  Revisa el panel: https://your-app.herokuapp.com/panel")
     else:
-        print(f"\nEl envio fallo. Revisa las credenciales de Meta.")
+        print("\nEl envio fallo. Revisa las credenciales de Meta.")
 
 
 if __name__ == "__main__":

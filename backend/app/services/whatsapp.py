@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def build_template_body_components(params: Dict[str, Any]) -> Optional[List[dict]]:
-    """
-    Construye `template.components` para la Cloud API cuando la plantilla tiene variables en el body.
-    Orden: `order_id` primero (plantillas shipping WTA), luego resto de claves alfabéticamente.
+    """Arma `template.components` si el body de la plantilla tiene variables.
+
+    Orden: `order_id` primero; luego demás claves alfabéticamente.
     """
     if not params:
         return None
@@ -34,7 +34,9 @@ def build_template_body_components(params: Dict[str, Any]) -> Optional[List[dict
     return [{"type": "body", "parameters": parameters}]
 
 
-def verify_meta_webhook_signature(body: bytes, signature_header: Optional[str], app_secret: str) -> bool:
+def verify_meta_webhook_signature(
+    body: bytes, signature_header: Optional[str], app_secret: str
+) -> bool:
     """Valida cabecera X-Hub-Signature-256 (sha256=<hex>)."""
     if not app_secret or not signature_header:
         return False
@@ -137,9 +139,7 @@ class WhatsAppService:
         """Credenciales por tienda (MS-I08); fallback global si WHATSAPP_ALLOW_GLOBAL_FALLBACK."""
         from backend.app.models.store import StoreSettings
 
-        row = (
-            db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
-        )
+        row = db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
         lang = "es"
         if row and (row.whatsapp_template_language or "").strip():
             lang = row.whatsapp_template_language.strip()
@@ -196,9 +196,7 @@ class WhatsAppService:
             "message_id": f"wamid.mock_{uuid.uuid4().hex[:12]}",
         }
 
-    def _real_send(
-        self, to: str, template_name: str, params: dict, language: str
-    ) -> dict:
+    def _real_send(self, to: str, template_name: str, params: dict, language: str) -> dict:
         if not (self.phone_number_id or "").strip():
             return {
                 "success": False,

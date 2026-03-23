@@ -9,8 +9,9 @@ Este plan descompone el MVP del WhatsApp Tracking Assistant en **22+ milestones*
 - **Track Backend** (B01–B08): 8 milestones — fundación → notificaciones con idempotencia
 - **Track Frontend** (F01–F04): 4 milestones — login → panel vendible con trazabilidad
 - **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, Weraha real, WhatsApp Cloud API (**I04** base; **I06–I08** Meta: plantillas, webhook firmado, tokens por tienda), observabilidad (**I05**)
-- **Onboarding**: **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`); **ONB02** registro self-service (`POST /auth/register`, **ADR-004**)
+- **Onboarding**: **ONB02** registro merchant (`POST /auth/register`, **ADR-004**) → **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`, **ADR-002**); el grafo refleja esa secuencia recomendada
 - **Post-MVP** (H01–H02): homologación Tiendanube App Store + homologación / App Review Meta (WhatsApp)
+- **DevOps** (**MS-CI01**): GitHub Actions (lint, tests, seguridad, Docker, release), Dependabot, pre-commit — ver `CONTRIBUTING.md`
 
 **Metodología**: TDD estricto (Red → Green → Refactor) en cada milestone.
 
@@ -670,27 +671,30 @@ flowchart TD
 - **Depende de**: MS-B06
 - **Objetivo**: Reemplazar mock de Weraha por integración real con API de Weraha
 
+**Estado en repo**: **parcial** — `WerahaAdapter` (`backend/app/services/weraha.py`) llama `GET {WERAHA_API_URL}/tracking/{id}` con `Authorization: Bearer {WERAHA_API_KEY}` y `timeout=10s` cuando `WERAHA_API_URL` es una URL HTTP(S) no vacía; si falta URL o es el placeholder `https://mock`, usa respuesta mock en proceso. **No** usa aún `store_settings.weraha_account_reference` por tienda (solo env global). Contrato público documentado del proveedor: pendiente de cerrar con Weraha.
+
 **Tasks**:
 
-- [ ] Investigar/documentar contrato real de Weraha API (endpoint, auth, response format)
-- [ ] Adaptar `WerahaAdapter.get_tracking_status()` para llamar API real
-- [ ] Autenticación: API key en header (desde `store_settings.weraha_account_reference` o env var)
-- [ ] Mapear estados reales de Weraha al state_mapper
-- [ ] Manejo de errores: timeout, 404 (tracking no encontrado), 500
-- [ ] Rate limiting: respetar límites de Weraha
-- [ ] Configuración per-store: cada tienda puede tener su propia referencia de cuenta Weraha
+- [ ] Investigar/documentar contrato oficial Weraha en producción (URL base, headers, shape JSON)
+- [x] Llamada HTTP real vía `httpx.get` cuando hay `WERAHA_API_URL` configurada
+- [x] Autenticación por API key global (`WERAHA_API_KEY` en `Settings`)
+- [ ] Configuración per-store (`weraha_account_reference` / credenciales por tienda) cableada al adapter
+- [x] Mapeo raw → interno en `state_mapper` (variantes EN_CAMINO / ENTREGADO / inglés — ver tests)
+- [x] Manejo básico de errores: excepciones `httpx` → dict con `error` (sin tumbar el worker)
+- [ ] Rate limiting explícito según límites Weraha
+- [ ] Validación end-to-end contra API de staging/productiva Weraha
 
-**Tests TDD requeridos**:
+**Tests TDD requeridos** (`tests/test_integrations/test_weraha_real.py`):
 
-- [ ] `test_weraha_real_success` — mock de httpx → respuesta parseada correctamente
-- [ ] `test_weraha_real_not_found` — tracking inexistente → manejo graceful
-- [ ] `test_weraha_real_timeout` — timeout → error registrado, orden no se rompe
-- [ ] `test_weraha_real_auth_error` — API key inválida → error claro
-- [ ] `test_state_mapper_with_real_states` — estados reales de Weraha mapean correctamente
+- [x] `test_real_success` — mock `httpx.get` → JSON parseado
+- [x] `test_real_not_found` — 404 / HTTPStatusError → resultado con error
+- [x] `test_real_timeout` — `TimeoutException` → error capturado
+- [x] `test_real_auth_error` — 401 → error capturado
+- [x] `test_state_mapper_with_real_states` — variantes de estado → `in_transit` / `delivered`
 
 **Test E2E del milestone**:
 
-- [ ] Worker ejecuta con adapter real (mock httpx) → estados de Weraha se reflejan en DB
+- [ ] Worker + API Weraha real (sin mock) en entorno controlado — pendiente
 
 **Criterio de completitud**: tracking real de Weraha funciona end-to-end
 
@@ -838,35 +842,74 @@ flowchart TD
 - **Depende de**: MS-I03, MS-I06, MS-I07, MS-I08
 - **Objetivo**: Health checks, métricas observables y logs según RFC §15 y §17, incluyendo señales de **WhatsApp/Meta** (errores Graph, entregas vía webhook I07, uso por tienda I08)
 
-**Tasks**:
+**Estado en repo**: **MVP parcial** — endpoints implementados en `backend/app/api/health.py`; agregados globales (sin filtrar por tienda). Logs: `logging` estándar en servicios/worker (no JSON estructurado por evento RFC §13).
 
-- [ ] Mejorar `GET /health` con datos operativos: última corrida worker, órdenes procesadas
-- [ ] Mejorar `GET /ready` con verificación de DB connection + dependencias
-- [ ] Logs estructurados para todos los eventos del RFC §13: orden recibida, estado actualizado, notificación enviada, error
-- [ ] Métricas calculables (RFC §15):
-  - `tiempo_a_primera_notificacion = first_notification_at - created_at`
-  - `pct_ordenes_notificadas = orders con first_notification_at / orders elegibles`
-  - `pct_telefonos_invalidos`
-  - `pct_errores_whatsapp` (idealmente por `error.code` de Graph cuando exista — post MS-I06)
-  - ratio mensajes `delivered` / `sent` si MS-I07 persiste estados de webhook
-- [ ] Endpoint interno `GET /metrics` (protegido) con estas métricas agregadas
+**Tasks — implementado**:
 
-**Tests TDD requeridos**:
+- [x] `GET /health` — `{"status":"ok","version":"0.1.0"}` (sin última corrida del worker ni conteo de órdenes)
+- [x] `GET /ready` — `SELECT 1` a DB; respuesta `database: connected|unavailable`
+- [x] `GET /metrics` — agregados sobre **todas** las órdenes: `total_orders`, `orders_notified`, `pct_notified`, `orders_invalid_phone`, `pct_invalid_phone`, `orders_whatsapp_errors`, `pct_whatsapp_errors` (`notification_status == failed`)
+- [x] Panel merchant: `GET /panel/stats` (por tienda, autenticado) en `settings` router
 
-- [ ] `test_health_includes_worker_status` — health muestra última corrida del worker
-- [ ] `test_ready_checks_db` — ready verifica conexión a DB
-- [ ] `test_metrics_calculates_notification_time` — métrica de tiempo calculada correctamente
-- [ ] `test_metrics_calculates_pct_notified` — porcentaje de órdenes notificadas
-- [ ] `test_logs_order_received` — log emitido al recibir orden
-- [ ] `test_logs_notification_sent` — log emitido al enviar notificación
+**Tasks — no implementado / mejora futura**:
+
+- [ ] Última corrida worker u órdenes procesadas en `/health`
+- [ ] Logs estructurados (JSON) para cada evento del RFC §13
+- [ ] Métrica `tiempo_a_primera_notificacion` (promedio o histograma)
+- [ ] `pct_errores_whatsapp` desagregado por `error.code` Graph (hoy solo fallos persistidos en orden)
+- [ ] Ratio `delivered`/`sent` desde webhook (requiere agregación explícita; hoy hay `provider_delivery_status` en `NotificationAttempt`)
+- [ ] Proteger `GET /metrics` (API key / IP allowlist / deshabilitar en prod público)
+
+**Tests TDD requeridos** (`tests/test_integrations/test_observability.py`):
+
+- [x] `test_health_includes_worker_status` — nombre histórico: valida presencia de `status` y `version` en `/health` (no incluye estado del worker)
+- [x] `test_ready_checks_db` — `/ready` y DB `connected`
+- [x] `test_metrics_endpoint` — forma del JSON de `/metrics`
+- [x] `test_metrics_calculates_pct_notified`
+- [x] `test_metrics_calculates_invalid_phone`
+- [ ] `test_metrics_calculates_notification_time` — no hay campo en respuesta aún
+- [ ] `test_logs_order_received` / `test_logs_notification_sent` — no hay aserciones de log estructurado
 
 **Test E2E del milestone**:
 
-- [ ] Sistema funcionando → GET /health muestra datos operativos → GET /metrics muestra métricas reales
+- [x] Tests de integración anteriores; revisión manual en staging recomendada
 
 **Criterio de completitud**: sistema es observable y monitoreable en producción
 
 **Entregable deployable**: Sí — health checks y métricas visibles en Heroku
+
+---
+
+## DevOps & calidad (MS-CI01)
+
+### MS-CI01: CI/CD GitHub Actions + prácticas DevOps
+
+- **Track**: Infra / calidad
+- **Depende de**: tests existentes (`pytest tests/`), Dockerfile en raíz
+- **Objetivo**: Automatizar lint, tests, escaneos de seguridad y build de imagen Docker en cada push/PR; Dependabot y hooks opcionales en local.
+
+**Estado en repo**: **implementado** — workflows numerados en `.github/workflows/`, `.pre-commit-config.yaml`, `.github/dependabot.yml`, `.github/CODEOWNERS`, `CONTRIBUTING.md`.
+
+**Tasks**:
+
+- [x] `01-lint-and-format.yml` — black, isort, flake8 (`.flake8`), validación YAML, pylint informativo (`continue-on-error`)
+- [x] `02-tests.yml` — `pytest` + cobertura (`coverage.xml`), JUnit, Codecov opcional (`CODECOV_TOKEN`), reporte de checks (dorny/test-reporter, `continue-on-error` en forks)
+- [x] `03-security.yml` — bandit, pip-audit (`continue-on-error`), Trivy filesystem + upload SARIF opcional
+- [x] `04-docker-build.yml` — build; push a `ghcr.io/${{ github.repository }}` si no es PR
+- [x] `05-release.yml` — release al etiquetar `v*`
+- [x] Dependabot (pip, Docker, GitHub Actions)
+- [x] CODEOWNERS (revisor `@lbertalot` — ajustar si cambia la org)
+- [x] Pre-commit (hooks estándar + black/isort/flake8)
+- [ ] Rama `main` protegida + checks obligatorios (configuración en GitHub, no en git)
+- [ ] Codecov u otro dashboard de cobertura con token en producción (opcional)
+
+**Tests / verificación**:
+
+- [x] `pytest tests/` en verde en local y en job `02-tests.yml`
+
+**Criterio de completitud**: PRs a `main`/`develop` ejecutan lint + tests en Actions; imagen Docker construible en CI.
+
+**Entregable deployable**: No aplica directamente — mejora el pipeline de entrega.
 
 ---
 
@@ -890,15 +933,13 @@ flowchart TD
   - Escenario de reinstalación
   - Simulación de todos los flujos del diagrama de secuencia
   - Guía de instalación completa
-- [ ] Implementar webhooks LGPD obligatorios (si no hechos en MS-I02): store/redact, customers/redact, customers/data_request
+- [x] Webhooks LGPD base cubiertos en **MS-I02** (`store/redact`, `customers/redact`, `customers/data_request` — ack / redact según implementación actual); profundizar borrado PII si exige auditoría TN
 - [ ] Revisar checklist de homologación async
 - [ ] Evaluar si migrar a app integrada (requiere Nimbus/React — decisión futura)
 
 **Tests TDD requeridos**:
 
-- [ ] `test_lgpd_store_redact` — webhook de redact marca/limpia datos de store
-- [ ] `test_lgpd_customers_redact` — webhook limpia datos de clientes
-- [ ] `test_lgpd_data_request` — webhook retorna datos solicitados
+- [x] Cubierto en MS-I02 — `test_webhook_store_redact`, `test_webhook_customers_redact`, `test_webhook_customers_data_request` (`tests/test_integrations/test_tiendanube_webhooks.py`)
 
 **Criterio de completitud**: artefactos enviados a publicacion@tiendanube.com
 
@@ -967,37 +1008,39 @@ Checklist final alineada con RFC §20 y PRD §12:
 
 ### Éxito técnico
 
-- [ ] **Órdenes procesadas** — órdenes de Tiendanube llegan vía webhook y se persisten (MS-B04, MS-I02)
-- [ ] **Tracking funcionando** — worker consulta Weraha y actualiza estados (MS-B06, MS-I03)
-- [ ] **Notificaciones enviadas** — WhatsApp envía in_transit y delivered con payload válido para Meta (MS-B07, MS-I04, **MS-I06**)
-- [ ] **Webhook WhatsApp** — estados `statuses` verificados con firma Meta (**MS-I07**)
-- [ ] **Credenciales WhatsApp por tienda** — sin token global único en producción multi-merchant (**MS-I08**)
-- [ ] **Panel visible** — merchant ve órdenes, estados y notificaciones (MS-B05, MS-F02)
-- [ ] **Errores trazables** — fallos visibles en panel con motivo (MS-B08, MS-F03)
-- [ ] **Acceso aislado por tienda** — store A no ve datos de store B (MS-B03, MS-B05)
-- [ ] **Onboarding persistido** — config de Weraha/WhatsApp/templates por tienda (MS-B02, **MS-I08**)
-- [ ] **Tiendanube vinculada al panel** — merchant autenticado asocia su tienda TN al mismo `Store` del JWT; sin duplicar tiendas huérfanas (MS-ONB01)
+> Checklist **respecto al código + tests** del repo. Criterios de **negocio** (p. ej. pilotos reales) siguen abajo.
+
+- [x] **Órdenes procesadas** — TN: `POST /webhooks/tiendanube` + fetch API (ADR-003); mock legacy `POST /webhooks/orders` — tests en `test_tiendanube_webhooks`, `test_webhook_orders`
+- [x] **Tracking funcionando** — worker + `WerahaAdapter` (mock o HTTP según `WERAHA_API_URL`) — `test_worker`, `test_weraha_real`
+- [x] **Notificaciones enviadas** — motor + Graph con plantillas/params (MS-I06) — tests servicios/notificación/WhatsApp
+- [x] **Webhook WhatsApp** — `GET/POST /webhooks/whatsapp`, firma Meta — `test_whatsapp_webhook`
+- [x] **Credenciales WhatsApp por tienda** — `store_settings` + `resolve_for_store`; fallback global solo si `WHATSAPP_ALLOW_GLOBAL_FALLBACK=true` — en **prod multi-merchant** operativamente conviene `false` + tokens en panel (**MS-I08**)
+- [x] **Panel visible** — `GET /orders`, plantillas panel — tests UI/API
+- [x] **Errores trazables** — `notification_status`, intentos, panel — MS-B08 / F03
+- [x] **Acceso aislado por tienda** — consultas filtradas por JWT `store_id` — p. ej. `test_get_orders_isolation`, `test_update_settings_isolation`, `test_panel_stats_scoped_by_store`
+- [x] **Onboarding persistido** — `StoreSettings` (incl. flags WhatsApp, plantillas)
+- [x] **Tiendanube vinculada al panel** — OAuth con `state` (ADR-002) — tests onboarding / seed E2E
 
 ### Éxito de producto
 
 - [ ] **3 tiendas activas** — 3 merchants de Paraguay usando el sistema
 - [ ] **Merchant percibe reducción de soporte** — validación manual en pilotos
 - [ ] **Visibilidad utilizada** — merchants acceden al panel regularmente
-- [ ] **Tiempo a primera notificación < 1 día** — métrica verificable en MS-I05
+- [ ] **Tiempo a primera notificación < 1 día** — métrica de producto; en código aún **no** hay endpoint dedicado (solo datos en orden / panel stats) — ver gap MS-I05
 
 ### Tests
 
-- [ ] **Todos los tests pasan** — `pytest` green en CI
-- [ ] **Cobertura de servicios > 80%** — unit tests de weraha, whatsapp (incl. plantillas I06 y webhook I07), notification, phone, state_mapper
-- [ ] **Tests E2E por milestone** — cada milestone tiene su test de flujo completo
-- [ ] **Mocks de APIs externas** — ningún test depende de APIs reales
+- [x] **Todos los tests pasan** — correr `pytest tests/` en local/CI (objetivo green)
+- [ ] **Cobertura de servicios > 80%** — objetivo RFC; no medido de forma obligatoria en CI en este repo
+- [ ] **Tests E2E por milestone** — hay integración amplia por área; no todo milestone tiene un único test E2E con nombre 1:1
+- [x] **Mocks de APIs externas** — httpx/Meta/TN mockeados en tests; sin llamadas reales obligatorias
 
 ### Deploy
 
 - [ ] **App corriendo en Heroku** — web dyno + worker dyno + scheduler + postgres
-- [ ] **Health check verde** — GET /health retorna 200 con datos operativos
+- [x] **Health / readiness** — `GET /health` → 200 `{status, version}`; `GET /ready` comprueba DB — **sin** “última corrida worker” en `/health` aún (MS-I05)
 - [ ] **Migraciones aplicadas** — `alembic upgrade head` ejecutado en producción
-- [ ] **Variables de entorno configuradas** — todas las vars del .env.example con valores reales
+- [ ] **Variables de entorno configuradas** — todas las vars relevantes del `.env.example` / `.env.docker.example` con valores reales en el entorno
 
 ---
 

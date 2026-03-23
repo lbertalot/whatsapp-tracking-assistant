@@ -1,0 +1,10 @@
+# Ajustá el usuario/equipo cuando el repo esté bajo otra org.
+* @lbertalot
+
+/backend/ @lbertalot
+/tests/ @lbertalot
+/scripts/ @lbertalot
+requirements.txt @lbertalot
+Dockerfile @lbertalot
+docker-compose.yml @lbertalot
+.github/ @lbertalot

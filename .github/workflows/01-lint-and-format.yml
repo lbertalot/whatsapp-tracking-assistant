@@ -1,0 +1,54 @@
+name: Lint & Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install black==24.10.0 isort==5.13.2 flake8==7.1.1 pylint==3.3.1
+
+      - name: Black (check)
+        run: black --check --diff backend/ tests/ scripts/
+
+      - name: isort (check)
+        run: isort --check-only --diff backend/ tests/ scripts/
+
+      - name: Flake8
+        run: flake8 backend/ tests/ scripts/
+
+      - name: Pylint (informativo)
+        continue-on-error: true
+        run: |
+          pylint backend/app --fail-under=0 --max-line-length=100 \
+            --disable=C0114,C0115,C0116,R0903
+
+      - name: Validar YAML de workflows
+        run: |
+          pip install pyyaml
+          python -c "
+          from pathlib import Path
+          import yaml
+          for p in sorted(Path('.github').rglob('*.yml')):
+              yaml.safe_load(p.read_text(encoding='utf-8'))
+              print('ok', p)
+          "

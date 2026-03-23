@@ -50,7 +50,7 @@ class StoreSettingsUpdate(BaseModel):
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_access_token: Optional[str] = Field(
         default=None,
-        description="Token de acceso Meta; vacío para no cambiar; string vacío explícito borra el guardado",
+        description=("Token Meta; omitir para no cambiar; '' explícito borra el valor guardado"),
     )
     whatsapp_template_language: Optional[str] = Field(
         default=None,

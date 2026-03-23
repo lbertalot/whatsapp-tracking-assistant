@@ -1,10 +1,9 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
-from backend.app.services.weraha import WerahaAdapter
 from backend.app.services.state_mapper import map_raw_status
+from backend.app.services.weraha import WerahaAdapter
 
 
 class TestWerahaReal:
@@ -44,7 +43,10 @@ class TestWerahaReal:
     def test_real_timeout(self):
         adapter = self._adapter()
 
-        with patch("backend.app.services.weraha.httpx.get", side_effect=httpx.TimeoutException("Timeout")):
+        with patch(
+            "backend.app.services.weraha.httpx.get",
+            side_effect=httpx.TimeoutException("Timeout"),
+        ):
             result = adapter.get_tracking_status("WRH-TIMEOUT")
 
         assert "error" in result

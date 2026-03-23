@@ -8,13 +8,13 @@ os.environ.setdefault("TIENDANUBE_APP_ID", "test-tn-app-id")
 os.environ.setdefault("TIENDANUBE_CLIENT_SECRET", "test-tn-client-secret")
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
 
-from backend.app.db.base import Base
 import backend.app.models  # noqa: F401
+from backend.app.db.base import Base
 from backend.app.db.session import get_db
 from backend.app.main import app
 
@@ -68,9 +68,9 @@ def client():
 @pytest.fixture
 def auth_env(engine):
     """Client + store + user compartiendo la misma DB de test (in-memory)."""
+    from backend.app.core.security import hash_password
     from backend.app.models.store import Store, StoreInstallation, StoreSettings
     from backend.app.models.user import StoreUser
-    from backend.app.core.security import hash_password
 
     Session = sessionmaker(bind=engine)
     session = Session()

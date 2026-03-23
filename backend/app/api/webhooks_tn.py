@@ -1,5 +1,5 @@
-import hmac
 import hashlib
+import hmac
 import json
 import logging
 from typing import Any, Optional, Tuple
@@ -52,14 +52,16 @@ def _tn_installation(db: Session, store_id: int) -> Optional[StoreInstallation]:
     return None
 
 
-def _tracking_from_webhook_payload(payload: dict) -> Tuple[Optional[str], Optional[str]]:
+def _tracking_from_webhook_payload(
+    payload: dict,
+) -> Tuple[Optional[str], Optional[str]]:
     track = payload.get("shipping_tracking_number")
     url = payload.get("shipping_tracking_url")
     if track:
         return str(track), url if isinstance(url, str) else None
     ti = payload.get("tracking_info")
     if isinstance(ti, dict) and ti.get("code"):
-        return str(ti["code"]), ti.get("url") if isinstance(ti.get("url"), str) else None
+        return str(ti["code"]), (ti.get("url") if isinstance(ti.get("url"), str) else None)
     return None, None
 
 
@@ -78,13 +80,11 @@ def _tracking_from_order_detail(detail: dict) -> Tuple[Optional[str], Optional[s
     return None, None
 
 
-def _customer_fields_from_order_detail(detail: dict) -> Tuple[Optional[str], Optional[str]]:
+def _customer_fields_from_order_detail(
+    detail: dict,
+) -> Tuple[Optional[str], Optional[str]]:
     customer = detail.get("customer") if isinstance(detail.get("customer"), dict) else {}
-    raw_phone = (
-        detail.get("contact_phone")
-        or customer.get("phone")
-        or detail.get("billing_phone")
-    )
+    raw_phone = detail.get("contact_phone") or customer.get("phone") or detail.get("billing_phone")
     if raw_phone is not None:
         raw_phone = str(raw_phone).strip() or None
     name = detail.get("contact_name") or customer.get("name")
@@ -276,8 +276,16 @@ def _handle_order_fulfilled(
                 existing.current_status = "ready_for_polling"
             db.commit()
             logger.info("Order %s tracking updated: %s", existing.id, tracking)
-            return {"status": "received", "order_id": existing.id, "tracking_updated": True}
-        return {"status": "received", "order_id": existing.id, "tracking_updated": False}
+            return {
+                "status": "received",
+                "order_id": existing.id,
+                "tracking_updated": True,
+            }
+        return {
+            "status": "received",
+            "order_id": existing.id,
+            "tracking_updated": False,
+        }
 
     # Orden aún no existe: crear desde API (p.ej. fulfilled antes que created en cola TN)
     if not detail:

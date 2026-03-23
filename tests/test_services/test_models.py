@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 def _make_store(db_session, **overrides):
     from backend.app.models.store import Store
+
     data = {"name": "Test Store", "external_store_id": "tn_100", **overrides}
     store = Store(**data)
     db_session.add(store)
@@ -13,6 +14,7 @@ def _make_store(db_session, **overrides):
 
 def _make_user(db_session, store, **overrides):
     from backend.app.models.user import StoreUser
+
     data = {
         "store_id": store.id,
         "email": "merchant@test.com",
@@ -27,6 +29,7 @@ def _make_user(db_session, store, **overrides):
 
 def _make_order(db_session, store, **overrides):
     from backend.app.models.order import Order
+
     data = {
         "store_id": store.id,
         "external_id": "order_1",
@@ -57,6 +60,7 @@ class TestStoreModel:
 class TestStoreSettingsModel:
     def test_store_settings_create(self, db_session):
         from backend.app.models.store import StoreSettings
+
         store = _make_store(db_session, external_store_id="tn_settings")
         settings = StoreSettings(store_id=store.id)
         db_session.add(settings)
@@ -68,6 +72,7 @@ class TestStoreSettingsModel:
 
     def test_store_settings_unique_per_store(self, db_session):
         from backend.app.models.store import StoreSettings
+
         store = _make_store(db_session, external_store_id="tn_set_uniq")
         db_session.add(StoreSettings(store_id=store.id))
         db_session.flush()
@@ -94,8 +99,10 @@ class TestOrderModel:
         assert order.store_id == store.id
 
     def test_order_requires_store(self, db_session):
-        from backend.app.models.order import Order
         from sqlalchemy import inspect
+
+        from backend.app.models.order import Order
+
         mapper = inspect(Order)
         store_id_col = mapper.columns["store_id"]
         assert store_id_col.nullable is False
@@ -115,6 +122,7 @@ class TestOrderModel:
 class TestNotificationAttemptModel:
     def test_notification_attempt_create(self, db_session):
         from backend.app.models.notification import NotificationAttempt
+
         store = _make_store(db_session, external_store_id="tn_notif")
         order = _make_order(db_session, store, external_id="notif_order")
         attempt = NotificationAttempt(
@@ -132,18 +140,29 @@ class TestNotificationAttemptModel:
 
     def test_notification_attempt_idempotency_key_unique(self, db_session):
         from backend.app.models.notification import NotificationAttempt
+
         store = _make_store(db_session, external_store_id="tn_idem")
         order = _make_order(db_session, store, external_id="idem_order")
         key = f"{store.id}:{order.id}:delivered"
-        db_session.add(NotificationAttempt(
-            store_id=store.id, order_id=order.id,
-            event_type="delivered", idempotency_key=key, status="sent",
-        ))
+        db_session.add(
+            NotificationAttempt(
+                store_id=store.id,
+                order_id=order.id,
+                event_type="delivered",
+                idempotency_key=key,
+                status="sent",
+            )
+        )
         db_session.flush()
         with pytest.raises(IntegrityError):
-            db_session.add(NotificationAttempt(
-                store_id=store.id, order_id=order.id,
-                event_type="delivered", idempotency_key=key, status="sent",
-            ))
+            db_session.add(
+                NotificationAttempt(
+                    store_id=store.id,
+                    order_id=order.id,
+                    event_type="delivered",
+                    idempotency_key=key,
+                    status="sent",
+                )
+            )
             db_session.flush()
         db_session.rollback()

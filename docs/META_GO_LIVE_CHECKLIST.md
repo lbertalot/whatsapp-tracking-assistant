@@ -34,6 +34,7 @@ Lista operativa para validar el entorno real con **Meta Cloud API** y esta app. 
 
 - [ ] `DATABASE_URL`, migraciones Alembic aplicadas (incl. columnas WhatsApp en `store_settings`).
 - [ ] Worker de polling en ejecución; `WERAHA_*` correcto para tracking.
+- [ ] **Observabilidad:** `GET /ready` para probes de DB; `GET /metrics` es **público** en el código actual (sin auth) — si exponés la app a internet, valorar firewall o deshabilitar la ruta hasta endurecer MS-I05.
 - [ ] Revisar logs ante **429**: el motor respeta `Retry-After` entre reintentos; errores de plantilla/config no deberían reintentarse en vano (heurística en código).
 
 ## 6. Prueba end-to-end mínima

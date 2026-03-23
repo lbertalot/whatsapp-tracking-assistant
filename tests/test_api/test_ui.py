@@ -1,6 +1,3 @@
-import pytest
-
-
 class TestLoginPage:
     def test_login_page_renders(self, client):
         response = client.get("/login")

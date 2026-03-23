@@ -7,16 +7,12 @@ Uso local / Docker:
   docker compose run --rm web python scripts/seed_demo_data.py
 
 Variables de entorno (opcionales):
-  SEED_TN_LINK_MODE     `oauth_ready` (default) | `demo`
-                        - oauth_ready: Store sin external_store_id TN; sin token TN → el panel pide
-                          conectar Tiendanube real (evita store_conflict con demo-paraguay-tn).
-                        - demo: external_store_id ficticio + token placeholder → panel “ya vinculado”
-                          para enseñar métricas sin OAuth; no mezclar con OAuth a otra tienda TN.
-  SEED_STORE_EXTERNAL_ID  En modo demo: default `demo-paraguay-tn`. En oauth_ready: vacío por defecto;
-                          si lo seteás, fija ese user_id TN (staging/CI con tienda conocida).
-  SEED_USER_EMAIL         Opcional. Default: demo@tiendademo.py (mismo email en cada wipe/reseed).
-  SEED_USER_PASSWORD      Opcional. Default: Demo2026Pass!
-                          No hace falta en .env en producción: los merchants usan /register (MS-ONB02).
+  SEED_TN_LINK_MODE — `oauth_ready` (default) | `demo`.
+    oauth_ready: sin TN hasta OAuth; evita conflict con demo-paraguay-tn.
+    demo: id ficticio + token placeholder; no mezclar con OAuth a otra TN.
+  SEED_STORE_EXTERNAL_ID — En demo default `demo-paraguay-tn`. En oauth_ready suele ir vacío.
+  SEED_USER_EMAIL — Default demo@tiendademo.py (mismo email en cada wipe).
+  SEED_USER_PASSWORD — Default Demo2026Pass!. En prod los merchants usan /register (MS-ONB02).
 """
 from __future__ import annotations
 
@@ -290,9 +286,7 @@ def seed() -> None:
                 o.notification_status = "sent"
                 o.last_template_name = row.get("template")
                 o.last_message_preview = row.get("preview")
-                o.last_message_type = (
-                    "delivered" if row["status"] == "delivered" else "in_transit"
-                )
+                o.last_message_type = "delivered" if row["status"] == "delivered" else "in_transit"
                 t = now - timedelta(hours=2)
                 o.first_notification_at = t
                 o.last_notification_at = t
