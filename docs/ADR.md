@@ -436,6 +436,27 @@ Los webhooks de TN para `order/*` solo incluyen `store_id`, `event` e `id` de la
 
 ---
 
+## ADR-004 — Registro merchant self-service (`POST /auth/register`)
+
+### Contexto
+
+Depender de `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` en `.env` para “el usuario del panel” no escala a producción ni refleja el flujo real del vendedor; además genera confusión en Docker/logs cuando esas variables faltan o no coinciden con el seed.
+
+### Decisión
+
+1. **`POST /auth/register`**: body JSON con `email`, `password` (mín. 8 caracteres) y `store_name` (2–150 caracteres); crea en una transacción `Store` (sin `external_store_id` hasta OAuth), `StoreSettings` con `onboarding_status=pending`, `StoreUser` con `role=owner`; responde **201** + `LoginResponse` (JWT).
+2. **Email duplicado**: **409** con mensaje claro; `IntegrityError` en commit también se mapea a 409.
+3. **UI**: `GET /register` (Jinja); enlaces desde login y ayuda pública; tras registro, misma lógica que login (redirigir a `/onboarding` si `needs_tiendanube`).
+4. **`GET /me`**: expone `tiendanube_user_id` (`Store.external_store_id`) y `needs_tiendanube` (misma regla que `GET /api/onboarding/status`: instalación TN activa con token).
+5. **Seed demo**: credenciales por defecto definidas en `scripts/seed_demo_data.py`; `SEED_USER_*` solo si hace falta otro email/contraseña para dev/CI.
+
+### Consecuencias
+
+* Milestone **MS-ONB02** en `docs/MILESTONES.md`; alineado con **MS-ONB01** (OAuth después de tener cuenta).
+* Despliegue normal sin usuario “mágico” en variables de entorno; el demo técnico sigue disponible vía script.
+
+---
+
 ## Resultado esperado
 
 Con este ADR:

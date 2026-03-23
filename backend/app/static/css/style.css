@@ -534,6 +534,232 @@ body {
     margin-top: 0.25rem;
 }
 
+.footer-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+}
+.footer-link:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+.login-help-link {
+    font-size: 0.8125rem;
+    text-align: center;
+    margin: -0.25rem 0 1rem;
+}
+.login-help-link a {
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+/* --- Onboarding & help (MS-ONB01 UX) --- */
+.onboarding-flow.settings-container,
+.help-guide.settings-container {
+    max-width: 720px;
+}
+
+.onboarding-intro h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.onboarding-lead {
+    color: var(--color-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    margin-bottom: 0.75rem;
+}
+
+.access-url-hint {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin-top: 0.5rem;
+}
+.access-url-hint code {
+    font-size: 0.8125rem;
+    background: var(--color-muted-bg);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.steps-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .steps-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.step-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    position: relative;
+}
+
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.step-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.35rem;
+    color: var(--color-text);
+}
+
+.step-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.checklist {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+.checklist li { margin-bottom: 0.35rem; }
+.checklist-compact { font-size: 0.8125rem; }
+
+.onboarding-cta {
+    flex-wrap: wrap;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
+
+.url-copy-block {
+    margin-top: 1rem;
+}
+.url-copy-block label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 0.35rem;
+}
+.copy-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.copy-target {
+    flex: 1;
+    min-width: 0;
+    display: block;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--color-muted-bg);
+    border-radius: var(--radius);
+    word-break: break-all;
+    border: 1px solid var(--color-border);
+}
+
+.collapsible-title {
+    font-size: 1.05rem;
+    margin-bottom: 0.35rem;
+}
+
+.faq-item {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: var(--color-muted-bg);
+}
+.faq-item summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.faq-item p {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.callout {
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.callout-info {
+    background: var(--color-blue-bg);
+    border: 1px solid #bfdbfe;
+}
+.callout-warning {
+    background: var(--color-warning-bg);
+    border: 1px solid #fcd34d;
+}
+.callout ul { margin: 0.5rem 0 0 1.1rem; }
+
+.help-guide .settings-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+.help-lead {
+    color: var(--color-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+}
+.help-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+    margin-bottom: 0.75rem;
+}
+.step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.35rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+.help-muted {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+}
+.help-hero {
+    background: linear-gradient(135deg, var(--color-blue-bg) 0%, var(--color-surface) 100%);
+}
+.help-footer-card {
+    text-align: center;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
     .header-inner { padding: 0 1rem; }

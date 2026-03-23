@@ -71,6 +71,7 @@
 (function() {
     if (!requireAuth()) return;
 
+    function runSettings() {
     var loadS = document.getElementById('loadingState');
     var content = document.getElementById('settingsContent');
     var alertEl = document.getElementById('settingsAlert');
@@ -149,6 +150,18 @@
     });
 
     loadSettings();
+    }
+
+    fetch('/api/onboarding/status', { headers: authHeaders() })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(s) {
+            if (s.needs_tiendanube) {
+                window.location.href = '/onboarding';
+                return;
+            }
+            runSettings();
+        })
+        .catch(function() { runSettings(); });
 })();
 </script>
 {% endblock %}

@@ -1,56 +1,3 @@
-import uuid
-
-import pytest
-from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
-
-from backend.app.db.session import get_db
-from backend.app.main import app
-
-
-@pytest.fixture
-def auth_env(engine):
-    """Provides a client + store + user sharing the same in-memory DB."""
-    from backend.app.models.store import Store
-    from backend.app.models.user import StoreUser
-    from backend.app.core.security import hash_password
-
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    uid = uuid.uuid4().hex[:8]
-    store = Store(name="Auth Store", external_store_id=f"tn_{uid}")
-    session.add(store)
-    session.flush()
-
-    email = f"merchant_{uid}@test.com"
-    user = StoreUser(
-        store_id=store.id,
-        email=email,
-        password_hash=hash_password("Secret123!"),
-    )
-    session.add(user)
-    session.commit()
-
-    def _override():
-        s = Session()
-        try:
-            yield s
-        finally:
-            s.close()
-
-    app.dependency_overrides[get_db] = _override
-    client = TestClient(app)
-
-    yield client, store, user, email
-
-    app.dependency_overrides.clear()
-    session.query(StoreUser).filter(StoreUser.id == user.id).delete()
-    session.query(Store).filter(Store.id == store.id).delete()
-    session.commit()
-    session.close()
-
-
 def test_hash_and_verify_password():
     from backend.app.core.security import hash_password, verify_password
 
@@ -67,6 +14,39 @@ def test_create_and_decode_jwt():
     payload = decode_access_token(token)
     assert payload["user_id"] == 1
     assert payload["store_id"] == 10
+
+
+def test_tn_oauth_state_roundtrip():
+    from backend.app.core.security import create_tn_oauth_state, decode_tn_oauth_state
+
+    state = create_tn_oauth_state(store_id=42)
+    data = decode_tn_oauth_state(state)
+    assert data is not None
+    assert data["store_id"] == 42
+    assert data["purpose"] == "tn_oauth"
+
+
+def test_tn_oauth_state_rejects_wrong_purpose():
+    from datetime import datetime, timedelta
+
+    from jose import jwt
+
+    from backend.app.core.config import settings
+    from backend.app.core.security import decode_tn_oauth_state
+
+    bad = jwt.encode(
+        {"store_id": 1, "purpose": "other", "exp": datetime.utcnow() + timedelta(minutes=5)},
+        settings.SECRET_KEY,
+        algorithm="HS256",
+    )
+    assert decode_tn_oauth_state(bad) is None
+
+
+def test_login_email_case_insensitive(auth_env):
+    client, store, user, email = auth_env
+    response = client.post("/auth/login", json={"email": email.upper(), "password": "Secret123!"})
+    assert response.status_code == 200
+    assert "access_token" in response.json()
 
 
 def test_login_success(auth_env):
@@ -98,6 +78,8 @@ def test_me_authenticated(auth_env):
     data = response.json()
     assert data["email"] == email
     assert data["store_id"] == store.id
+    assert data["tiendanube_user_id"] == store.external_store_id
+    assert data["needs_tiendanube"] is True
 
 
 def test_me_unauthenticated(client):
@@ -108,3 +90,59 @@ def test_me_unauthenticated(client):
 def test_me_invalid_token(client):
     response = client.get("/me", headers={"Authorization": "Bearer invalid.token.here"})
     assert response.status_code == 401
+
+
+def test_register_success(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "newmerchant@example.com",
+            "password": "Secret123!",
+            "store_name": "Mi Tienda Nueva",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert "access_token" in data
+    from backend.app.core.security import decode_access_token
+
+    payload = decode_access_token(data["access_token"])
+    assert payload["user_id"] is not None
+    assert payload["store_id"] is not None
+
+    me = client.get("/me", headers={"Authorization": f"Bearer {data['access_token']}"})
+    assert me.status_code == 200
+    body = me.json()
+    assert body["email"] == "newmerchant@example.com"
+    assert body["store_name"] == "Mi Tienda Nueva"
+    assert body["role"] == "owner"
+    assert body["tiendanube_user_id"] is None
+    assert body["needs_tiendanube"] is True
+
+
+def test_register_duplicate_email(client):
+    body = {
+        "email": "dup_merchant@test.com",
+        "password": "Secret123!",
+        "store_name": "Tienda Dup",
+    }
+    assert client.post("/auth/register", json=body).status_code == 201
+    r2 = client.post("/auth/register", json=body)
+    assert r2.status_code == 409
+    assert "registrado" in str(r2.json().get("detail", "")).lower()
+
+
+def test_register_password_too_short(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "shortpw@test.com", "password": "short", "store_name": "AB"},
+    )
+    assert response.status_code == 422
+
+
+def test_register_store_name_too_short(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "badname@test.com", "password": "Secret123!", "store_name": "x"},
+    )
+    assert response.status_code == 422
