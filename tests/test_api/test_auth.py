@@ -108,3 +108,58 @@ def test_me_unauthenticated(client):
 def test_me_invalid_token(client):
     response = client.get("/me", headers={"Authorization": "Bearer invalid.token.here"})
     assert response.status_code == 401
+
+
+def test_register_success_snake_case(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "newmerchant@example.com",
+            "password": "Secret123!",
+            "store_name": "Mi Tienda Nueva",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert "access_token" in data
+
+
+def test_register_success_camel_case_store_name(client):
+    """Compat: algunos frontends envían storeName en lugar de store_name."""
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "camelcase@example.com",
+            "password": "Secret123!",
+            "storeName": "Berta Shop",
+        },
+    )
+    assert response.status_code == 201
+    assert "access_token" in response.json()
+
+
+def test_register_duplicate_email(client):
+    body = {
+        "email": "dup_merchant@test.com",
+        "password": "Secret123!",
+        "store_name": "Tienda Dup",
+    }
+    assert client.post("/auth/register", json=body).status_code == 201
+    r2 = client.post("/auth/register", json=body)
+    assert r2.status_code == 409
+
+
+def test_register_password_too_short(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "shortpw@test.com", "password": "short", "store_name": "AB"},
+    )
+    assert response.status_code == 422
+
+
+def test_register_store_name_too_short(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "badname@test.com", "password": "Secret123!", "store_name": "x"},
+    )
+    assert response.status_code == 422

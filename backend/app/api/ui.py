@@ -20,6 +20,11 @@ def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
 
 
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return templates.TemplateResponse(request, "register.html")
+
+
 @router.get("/panel", response_class=HTMLResponse)
 def panel_page(request: Request):
     return templates.TemplateResponse(request, "orders.html")

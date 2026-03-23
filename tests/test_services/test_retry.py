@@ -14,7 +14,12 @@ def _setup(session, **order_overrides):
     session.add(store)
     session.flush()
 
-    settings = StoreSettings(store_id=store.id, onboarding_status="active", weraha_enabled=True)
+    settings = StoreSettings(
+        store_id=store.id,
+        onboarding_status="active",
+        weraha_enabled=True,
+        whatsapp_enabled=True,
+    )
     session.add(settings)
 
     defaults = dict(
@@ -44,6 +49,33 @@ def retry_session(engine):
 
 
 class TestRetryAndIdempotency:
+    def test_skip_second_attempt_on_permanent_graph_error(self, retry_session):
+        from backend.app.services.notification import NotificationEngine
+        from backend.app.services.whatsapp import WhatsAppService
+
+        call_count = 0
+        original_send = WhatsAppService.send_template_message
+
+        def fail_permanent(self, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return {
+                "success": False,
+                "error": "131047",
+                "error_message": "Re-engagement message",
+            }
+
+        WhatsAppService.send_template_message = fail_permanent
+        try:
+            store, order = _setup(retry_session)
+            engine = NotificationEngine(whatsapp=WhatsAppService(mock=False), max_retries=1)
+            result = engine.evaluate_and_notify(retry_session, order)
+
+            assert result["sent"] is False
+            assert call_count == 1
+        finally:
+            WhatsAppService.send_template_message = original_send
+
     def test_retry_on_first_failure(self, retry_session):
         from backend.app.services.notification import NotificationEngine
         from backend.app.services.whatsapp import WhatsAppService

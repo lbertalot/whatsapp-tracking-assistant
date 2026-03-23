@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Crear cuenta{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <h1 class="login-title">Crear cuenta</h1>
+        <p class="login-subtitle">Registrá tu tienda y luego vinculá Tiendanube</p>
+        <p class="login-help-link"><a href="/login">¿Ya tenés cuenta? Iniciar sesión</a></p>
+
+        <div class="alert alert-error" id="registerError" style="display:none;"></div>
+
+        <form id="registerForm" method="POST" action="/auth/register">
+            <div class="form-group">
+                <label for="storeName">Nombre de tu tienda</label>
+                <input type="text" id="storeName" name="store_name" required minlength="2" maxlength="150"
+                       placeholder="Mi tienda" autocomplete="organization">
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required
+                       placeholder="tu@empresa.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required minlength="8"
+                       placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="registerBtn">
+                Registrarme
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function formatRegisterError(data) {
+    if (!data || data.detail == null) return 'No se pudo crear la cuenta';
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) {
+        return data.detail.map(function(d) {
+            var loc = Array.isArray(d.loc) ? d.loc.join('.') : '';
+            var msg = d.msg || '';
+            if (msg === 'Field required') {
+                if (loc.indexOf('store_name') >= 0 || loc.indexOf('storeName') >= 0)
+                    return 'Falta el nombre de la tienda';
+                if (loc.indexOf('email') >= 0) return 'Falta el email';
+                if (loc.indexOf('password') >= 0) return 'Falta la contraseña';
+            }
+            return msg || loc || JSON.stringify(d);
+        }).join(' ');
+    }
+    return String(data.detail);
+}
+
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('registerBtn');
+    const errEl = document.getElementById('registerError');
+    btn.disabled = true;
+    btn.textContent = 'Creando cuenta...';
+    errEl.style.display = 'none';
+
+    try {
+        const resp = await fetch('/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                store_name: document.getElementById('storeName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value
+            })
+        });
+
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(formatRegisterError(data));
+        }
+
+        const data = await resp.json();
+        setToken(data.access_token);
+        window.location.href = '/panel';
+    } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Registrarme';
+    }
+});
+
+if (getToken()) {
+    window.location.href = '/panel';
+}
+</script>
+{% endblock %}

@@ -26,7 +26,7 @@ docker compose run --rm web python scripts/seed_demo_data.py
 # Panel demo sin OAuth: SEED_TN_LINK_MODE=demo docker compose run --rm web python scripts/seed_demo_data.py
 ```
 
-Detalle: [docs/DOCKER.md](docs/DOCKER.md)
+Detalle: [docs/DOCKER.md](docs/DOCKER.md) · WhatsApp/Meta: [docs/WHATSAPP_META.md](docs/WHATSAPP_META.md)
 
 ### Opción B — Python en la máquina
 
