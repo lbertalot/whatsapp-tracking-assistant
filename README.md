@@ -22,6 +22,8 @@ cp .env.docker.example .env.docker   # opcional
 docker compose up --build
 # Datos demo (tienda + órdenes TN-100x):
 docker compose run --rm web python scripts/seed_demo_data.py
+# Por defecto el seed usa SEED_TN_LINK_MODE=oauth_ready (panel pide vincular TN real).
+# Panel demo sin OAuth: SEED_TN_LINK_MODE=demo docker compose run --rm web python scripts/seed_demo_data.py
 ```
 
 Detalle: [docs/DOCKER.md](docs/DOCKER.md)

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
-Regenera datos de demostración alineados con el escenario Heroku (Tienda Demo Paraguay + ~10 órdenes).
+Regenera datos de demostración (Tienda Demo Paraguay + ~10 órdenes).
 
 Uso local / Docker:
   python scripts/seed_demo_data.py
   docker compose run --rm web python scripts/seed_demo_data.py
 
 Variables de entorno (opcionales):
-  SEED_STORE_EXTERNAL_ID  (default: demo-paraguay-tn)
+  SEED_TN_LINK_MODE     `oauth_ready` (default) | `demo`
+                        - oauth_ready: Store sin external_store_id TN; sin token TN → el panel pide
+                          conectar Tiendanube real (evita store_conflict con demo-paraguay-tn).
+                        - demo: external_store_id ficticio + token placeholder → panel “ya vinculado”
+                          para enseñar métricas sin OAuth; no mezclar con OAuth a otra tienda TN.
+  SEED_STORE_EXTERNAL_ID  En modo demo: default `demo-paraguay-tn`. En oauth_ready: vacío por defecto;
+                          si lo seteás, fija ese user_id TN (staging/CI con tienda conocida).
   SEED_USER_EMAIL         (default: demo@tiendademo.py)
   SEED_USER_PASSWORD      (default: DemoWTA2026!)
 """
@@ -25,6 +31,8 @@ from dotenv import load_dotenv
 load_dotenv(".env.docker", override=False)
 load_dotenv(".env", override=False)
 
+from sqlalchemy.orm import Session
+
 from backend.app.core.security import hash_password
 from backend.app.db.session import SessionLocal
 from backend.app.models.notification import NotificationAttempt
@@ -32,41 +40,83 @@ from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.models.user import StoreUser
 
-STORE_EXTERNAL_ID = os.environ.get("SEED_STORE_EXTERNAL_ID", "demo-paraguay-tn")
-USER_EMAIL = os.environ.get("SEED_USER_EMAIL", "demo@tiendademo.py")
-USER_PASSWORD = os.environ.get("SEED_USER_PASSWORD", "DemoWTA2026!")
+DEFAULT_DEMO_EXTERNAL_ID = "demo-paraguay-tn"
 
 
-def wipe_demo_store(db, external_id: str) -> None:
-    store = db.query(Store).filter(Store.external_store_id == external_id).first()
-    if not store:
-        return
-    order_ids = [r[0] for r in db.query(Order.id).filter(Order.store_id == store.id).all()]
+def _wipe_store_cascade(db: Session, store_id: int) -> None:
+    order_ids = [r[0] for r in db.query(Order.id).filter(Order.store_id == store_id).all()]
     if order_ids:
         db.query(NotificationAttempt).filter(NotificationAttempt.order_id.in_(order_ids)).delete(
             synchronize_session=False
         )
-        db.query(Order).filter(Order.store_id == store.id).delete(synchronize_session=False)
-    db.query(StoreUser).filter(StoreUser.store_id == store.id).delete(synchronize_session=False)
-    db.query(StoreSettings).filter(StoreSettings.store_id == store.id).delete(synchronize_session=False)
-    db.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).delete(
+        db.query(Order).filter(Order.store_id == store_id).delete(synchronize_session=False)
+    db.query(StoreUser).filter(StoreUser.store_id == store_id).delete(synchronize_session=False)
+    db.query(StoreSettings).filter(StoreSettings.store_id == store_id).delete(
         synchronize_session=False
     )
-    db.delete(store)
+    db.query(StoreInstallation).filter(StoreInstallation.store_id == store_id).delete(
+        synchronize_session=False
+    )
+    st = db.query(Store).filter(Store.id == store_id).first()
+    if st:
+        db.delete(st)
     db.commit()
-    print(f"Tienda demo anterior eliminada (external_id={external_id}).")
+
+
+def wipe_seed_store(db: Session, user_email: str, legacy_external_id: str | None) -> None:
+    """
+    Elimina la tienda asociada al usuario seed (mismo email en cada corrida).
+    Si no hay usuario, intenta borrar por external_id legado (migración desde seeds viejos).
+    """
+    user = db.query(StoreUser).filter(StoreUser.email == user_email).first()
+    if user:
+        _wipe_store_cascade(db, user.store_id)
+        print(f"Tienda demo anterior eliminada (usuario seed {user_email}).")
+        return
+    if legacy_external_id:
+        store = db.query(Store).filter(Store.external_store_id == legacy_external_id).first()
+        if store:
+            _wipe_store_cascade(db, store.id)
+            print(f"Tienda demo anterior eliminada (external_id={legacy_external_id}).")
 
 
 def seed() -> None:
+    user_email = os.environ.get("SEED_USER_EMAIL", "demo@tiendademo.py")
+    user_password = os.environ.get("SEED_USER_PASSWORD", "DemoWTA2026!")
+    mode = os.environ.get("SEED_TN_LINK_MODE", "oauth_ready").strip().lower()
+    if mode not in ("demo", "oauth_ready"):
+        raise SystemExit(f"SEED_TN_LINK_MODE inválido: {mode!r} (usar demo u oauth_ready)")
+
+    explicit_ext = os.environ.get("SEED_STORE_EXTERNAL_ID", "").strip()
+
+    if mode == "demo":
+        store_external_id = explicit_ext or DEFAULT_DEMO_EXTERNAL_ID
+        tn_token = "SEED_DEMO_PLACEHOLDER"
+        tn_active = True
+        onboarding_st = "active"
+    else:
+        # oauth_ready
+        store_external_id = explicit_ext if explicit_ext else None
+        tn_token = ""
+        tn_active = False
+        onboarding_st = "pending"
+
+    legacy_wipe_ext = None
+    if mode == "demo":
+        legacy_wipe_ext = store_external_id
+    else:
+        # también limpiar restos del seed antiguo demo-paraguay-tn si existían sin user
+        legacy_wipe_ext = DEFAULT_DEMO_EXTERNAL_ID
+
     db = SessionLocal()
     try:
-        wipe_demo_store(db, STORE_EXTERNAL_ID)
+        wipe_seed_store(db, user_email, legacy_wipe_ext)
 
         now = datetime.utcnow()
 
         store = Store(
             name="Tienda Demo Paraguay",
-            external_store_id=STORE_EXTERNAL_ID,
+            external_store_id=store_external_id,
             country="Paraguay",
             status="active",
         )
@@ -80,28 +130,39 @@ def seed() -> None:
             whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or "demo-phone-id",
             template_in_transit="shipping_in_transit_v1",
             template_delivered="shipping_delivered_v1",
-            onboarding_status="active",
+            onboarding_status=onboarding_st,
         )
         db.add(settings)
 
-        installation = StoreInstallation(
-            store_id=store.id,
-            order_source_type="tiendanube",
-            is_active=True,
-            installed_at=now,
-        )
-        db.add(installation)
+        # Instalación TN: en oauth_ready fila vacía/inactiva para que needs_tiendanube sea True
+        if mode == "demo":
+            installation = StoreInstallation(
+                store_id=store.id,
+                order_source_type="tiendanube",
+                access_token=tn_token,
+                is_active=tn_active,
+                installed_at=now,
+            )
+            db.add(installation)
+        else:
+            installation = StoreInstallation(
+                store_id=store.id,
+                order_source_type="tiendanube",
+                access_token=tn_token or None,
+                is_active=tn_active,
+                installed_at=None,
+            )
+            db.add(installation)
 
         user = StoreUser(
             store_id=store.id,
-            email=USER_EMAIL,
-            password_hash=hash_password(USER_PASSWORD),
+            email=user_email,
+            password_hash=hash_password(user_password),
             role="admin",
         )
         db.add(user)
         db.flush()
 
-        # Escenario tipo panel Heroku: mezcla de estados logísticos y de notificación
         demo_orders: list[dict] = [
             {
                 "external_id": "TN-1001",
@@ -248,7 +309,6 @@ def seed() -> None:
 
         db.flush()
 
-        # Intento de notificación para TN-1005 (coherente con envío demo real)
         order_1005 = (
             db.query(Order)
             .filter(Order.store_id == store.id, Order.external_id == "TN-1005")
@@ -271,8 +331,9 @@ def seed() -> None:
         db.commit()
 
         print("Seed completado.")
-        print(f"  Tienda: {store.name} (external_id={STORE_EXTERNAL_ID})")
-        print(f"  Login panel: {USER_EMAIL} / {USER_PASSWORD}")
+        print(f"  SEED_TN_LINK_MODE={mode}")
+        print(f"  Tienda: {store.name} (external_store_id={store.external_store_id!r})")
+        print(f"  Login panel: {user_email} / {user_password}")
         print("  Órdenes: TN-1001 … TN-1010 (mezcla de estados como en Heroku)")
     finally:
         db.close()

@@ -391,6 +391,51 @@ Sirve para:
 
 ---
 
+## ADR-002 — Onboarding Tiendanube (OAuth `state` + mismo `Store`)
+
+### Contexto
+
+El callback OAuth de Tiendanube (MS-I01) puede crear o actualizar un `Store` solo por `user_id` de TN, desalineado del merchant que ya inició sesión en el panel con otro `store_id` (JWT). Se necesita vincular la instalación TN al **mismo** `Store` del usuario autenticado.
+
+### Decisión
+
+1. **`state` OAuth = JWT de corta vida** firmado con `SECRET_KEY`, con `store_id`, `purpose: tn_oauth` y expiración (15 min). Se genera en `GET /api/integrations/tiendanube/install-url` (requiere Bearer) y TN lo devuelve en el callback.
+2. **Callback con `state`**: intercambio de código, actualización de `Store`, `StoreInstallation` y redirección **HTTP 302** a `{APP_BASE_URL}/onboarding?success=1` o `?error=…` para UX en navegador (no 409 JSON en este flujo).
+3. **Conflictos**: si el `Store` ya tiene `external_store_id` distinto al `user_id` TN → redirect `error=store_conflict` (desvincular / soporte fuera de MVP).
+4. **Legacy sin `state`**: se conserva respuesta JSON para instalaciones iniciadas desde el ecosistema TN sin panel.
+5. **Token endpoint**: `exchange_code` envía cuerpo **JSON**; si en producción TN exigiera solo `form-urlencoded`, añadir fallback documentado.
+
+### Consecuencias
+
+* Gating en panel (`needs_tiendanube`) y guards en plantillas alinean órdenes/webhooks futuros al `store_id` correcto.
+* El merchant siempre pasa por flujo autenticado antes de autorizar TN en el escenario “panel primero”.
+* UX: guía pública `/ayuda/conectar-tiendanube`, onboarding con pasos y URLs copiables expuestas vía `GET /api/onboarding/status` para reducir fricción y tickets de soporte.
+* **Seed local:** `SEED_TN_LINK_MODE=oauth_ready` evita `external_store_id` ficticio (`demo-paraguay-tn`) que provocaba `store_conflict` al vincular una tienda TN real; modo `demo` conserva el panel “precargado” sin OAuth.
+
+---
+
+## ADR-003 — Webhooks de pedido Tiendanube (payload mínimo + fetch API)
+
+### Contexto
+
+Los webhooks de TN para `order/*` solo incluyen `store_id`, `event` e `id` de la orden ([documentación oficial](https://tiendanube.github.io/api-documentation/resources/webhook)). No alcanza para teléfono ni tracking.
+
+### Decisión
+
+1. Tras validar HMAC, resolver `Store` por `external_store_id == str(store_id)` y obtener `access_token` de `StoreInstallation` TN activa.
+2. **`order/created` / `order/paid`**: `GET /v1/{user_id}/orders/{id}` → persistir `Order` con `contact_phone` / `customer` según respuesta API.
+3. **`order/fulfilled`**: priorizar tracking en el cuerpo del POST si viene (`shipping_*` o `tracking_info`); si no, `GET` con `aggregates=fulfillment_orders` y leer `tracking_info.code` en `fulfillment_orders` / `fulfillments`.
+4. **Rendimiento**: timeout ~2,5s en el cliente HTTP; si orden existe y el webhook trae tracking, no llamar a la API.
+5. **Errores transitorios de API**: responder **503** para que TN reintente; sin token TN → **200** `ignored` (evita reintentos infinitos por config rota).
+6. **`store/redact`**: `Store.status = redacted`, instalaciones TN `is_active=False` (worker ya filtra `status=active`).
+
+### Consecuencias
+
+* Dependencia de token válido y scopes (p. ej. lectura de órdenes) en la app TN.
+* Menos “magia” sobre payloads no documentados; tests usan mock de API.
+
+---
+
 ## Resultado esperado
 
 Con este ADR:
