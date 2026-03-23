@@ -124,6 +124,17 @@ class TestSettingsPage:
         assert "infoWeraha" in response.text
         assert "infoWhatsapp" in response.text
 
+    def test_settings_has_whatsapp_meta_section(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        html = response.text
+        assert "waSettingsCard" in html
+        assert "btnSaveWa" in html
+        assert "waPhoneId" in html
+        assert "waToken" in html
+        assert "waLang" in html
+        assert "waTokenStatus" in html
+
 
 class TestDashboardStats:
     def test_panel_has_stats_grid(self, client):

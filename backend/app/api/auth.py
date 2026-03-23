@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.dependencies import get_current_user
 from backend.app.core.security import verify_password, create_access_token, hash_password
 from backend.app.db.session import get_db
-from backend.app.models.store import Store, StoreInstallation
+from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.models.user import StoreUser
 from backend.app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 
@@ -48,8 +48,6 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/auth/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    from backend.app.models.store import StoreSettings
-
     email = str(body.email).lower().strip()
     if db.query(StoreUser).filter(StoreUser.email == email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email ya registrado")

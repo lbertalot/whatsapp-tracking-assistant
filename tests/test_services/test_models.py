@@ -64,6 +64,7 @@ class TestStoreSettingsModel:
         assert settings.onboarding_status == "pending"
         assert settings.weraha_enabled is False
         assert settings.whatsapp_enabled is False
+        assert settings.whatsapp_include_body_params is True
 
     def test_store_settings_unique_per_store(self, db_session):
         from backend.app.models.store import StoreSettings

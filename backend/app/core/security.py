@@ -37,7 +37,7 @@ TN_OAUTH_STATE_TTL_MINUTES = 15
 
 
 def create_tn_oauth_state(store_id: int) -> str:
-    """JWT corto para parámetro `state` en OAuth Tiendanube (vincula callback al store del panel)."""
+    """JWT de corta vida para `state` en OAuth Tiendanube (MS-ONB01; vincula callback al store del panel)."""
     expire = datetime.utcnow() + timedelta(minutes=TN_OAUTH_STATE_TTL_MINUTES)
     payload = {"store_id": store_id, "purpose": TN_OAUTH_PURPOSE, "exp": expire}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
@@ -46,10 +46,10 @@ def create_tn_oauth_state(store_id: int) -> str:
 def decode_tn_oauth_state(token: str) -> Optional[dict]:
     try:
         data = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        if data.get("purpose") != TN_OAUTH_PURPOSE:
-            return None
-        if "store_id" not in data:
-            return None
-        return data
     except JWTError:
         return None
+    if data.get("purpose") != TN_OAUTH_PURPOSE:
+        return None
+    if "store_id" not in data:
+        return None
+    return data

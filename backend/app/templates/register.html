@@ -37,6 +37,25 @@
 
 {% block scripts %}
 <script>
+function formatRegisterError(data) {
+    if (!data || data.detail == null) return 'No se pudo crear la cuenta';
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) {
+        return data.detail.map(function(d) {
+            var loc = Array.isArray(d.loc) ? d.loc.join('.') : '';
+            var msg = d.msg || '';
+            if (msg === 'Field required') {
+                if (loc.indexOf('store_name') >= 0 || loc.indexOf('storeName') >= 0)
+                    return 'Falta el nombre de la tienda';
+                if (loc.indexOf('email') >= 0) return 'Falta el email';
+                if (loc.indexOf('password') >= 0) return 'Falta la contraseña';
+            }
+            return msg || loc || JSON.stringify(d);
+        }).join(' ');
+    }
+    return String(data.detail);
+}
+
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('registerBtn');
@@ -50,19 +69,15 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                store_name: document.getElementById('storeName').value,
-                email: document.getElementById('email').value,
+                store_name: document.getElementById('storeName').value.trim(),
+                email: document.getElementById('email').value.trim(),
                 password: document.getElementById('password').value
             })
         });
 
         if (!resp.ok) {
             const data = await resp.json().catch(() => ({}));
-            let msg = data.detail || 'No se pudo crear la cuenta';
-            if (Array.isArray(data.detail)) {
-                msg = data.detail.map(function(d) { return d.msg || d; }).join('. ');
-            }
-            throw new Error(msg);
+            throw new Error(formatRegisterError(data));
         }
 
         const data = await resp.json();

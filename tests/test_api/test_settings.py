@@ -50,6 +50,9 @@ def test_get_settings(client):
         assert data["weraha_enabled"] is True
         assert data["whatsapp_enabled"] is True
         assert data["onboarding_status"] == "active"
+        assert data["whatsapp_token_configured"] is False
+        assert data["whatsapp_template_language"] == "es"
+        assert data["whatsapp_include_body_params"] is True
     finally:
         db.rollback()
         db.close()
@@ -103,3 +106,48 @@ def test_update_settings_isolation(client):
 def test_put_settings_requires_auth(client):
     resp = client.put("/api/settings", json={"template_in_transit": "x"})
     assert resp.status_code == 401
+
+
+def test_put_whatsapp_include_body_params(client):
+    db = TestingSession()
+    try:
+        _, _, token = _setup_env(db)
+        resp = client.put(
+            "/api/settings",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"whatsapp_include_body_params": False},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["whatsapp_include_body_params"] is False
+        get_r = client.get("/api/settings", headers={"Authorization": f"Bearer {token}"})
+        assert get_r.json()["whatsapp_include_body_params"] is False
+    finally:
+        db.rollback()
+        db.close()
+
+
+def test_put_whatsapp_token_not_exposed_in_get(client):
+    db = TestingSession()
+    try:
+        _, _, token = _setup_env(db)
+        put = client.put(
+            "/api/settings",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "whatsapp_access_token": "EAA_SECRET_META_NOT_IN_RESPONSE",
+                "whatsapp_template_language": "es",
+            },
+        )
+        assert put.status_code == 200
+        assert "EAA_SECRET" not in put.text
+        assert put.json()["whatsapp_token_configured"] is True
+
+        resp = client.get("/api/settings", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["whatsapp_token_configured"] is True
+        assert "EAA_SECRET" not in resp.text
+        assert "whatsapp_access_token" not in data
+    finally:
+        db.rollback()
+        db.close()

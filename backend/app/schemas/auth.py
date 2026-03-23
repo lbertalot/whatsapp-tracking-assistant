@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -9,9 +9,16 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    """Acepta `store_name` o `storeName` en JSON (evita 422 si el front manda camelCase)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
     email: EmailStr
     password: str
-    store_name: str
+    store_name: str = Field(
+        ...,
+        validation_alias=AliasChoices("store_name", "storeName"),
+    )
 
     @field_validator("store_name")
     @classmethod

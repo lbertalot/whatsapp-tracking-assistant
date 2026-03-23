@@ -49,8 +49,12 @@ class StoreSettings(Base):
     weraha_account_reference = Column(String(100), nullable=True)
 
     whatsapp_enabled = Column(Boolean, default=False)
+    # Si False, no se envía `template.components` (plantillas sin variables en el body).
+    whatsapp_include_body_params = Column(Boolean, default=True, nullable=False)
     whatsapp_phone_number_id = Column(String(100), nullable=True)
     whatsapp_business_account_id = Column(String(100), nullable=True)
+    whatsapp_access_token = Column(Text, nullable=True)
+    whatsapp_template_language = Column(String(10), nullable=True)
 
     template_in_transit = Column(String(100), nullable=True)
     template_delivered = Column(String(100), nullable=True)
