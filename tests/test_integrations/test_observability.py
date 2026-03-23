@@ -2,13 +2,13 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.models.store import Store, StoreSettings
-from backend.app.models.order import Order
 from backend.app.db.session import get_db
 from backend.app.main import app
-from fastapi.testclient import TestClient
+from backend.app.models.order import Order
+from backend.app.models.store import Store, StoreSettings
 
 
 @pytest.fixture
@@ -27,29 +27,40 @@ def metrics_env(engine):
     now = datetime.utcnow()
     orders = [
         Order(
-            store_id=store.id, external_id=f"m1_{uid}",
-            normalized_phone="+595981111111", tracking_number="WRH-M1",
-            current_status="delivered", notification_status="sent",
+            store_id=store.id,
+            external_id=f"m1_{uid}",
+            normalized_phone="+595981111111",
+            tracking_number="WRH-M1",
+            current_status="delivered",
+            notification_status="sent",
             first_notification_at=now - timedelta(hours=2),
             created_at=now - timedelta(hours=5),
         ),
         Order(
-            store_id=store.id, external_id=f"m2_{uid}",
-            normalized_phone="+595982222222", tracking_number="WRH-M2",
-            current_status="in_transit", notification_status="sent",
+            store_id=store.id,
+            external_id=f"m2_{uid}",
+            normalized_phone="+595982222222",
+            tracking_number="WRH-M2",
+            current_status="in_transit",
+            notification_status="sent",
             first_notification_at=now - timedelta(hours=1),
             created_at=now - timedelta(hours=3),
         ),
         Order(
-            store_id=store.id, external_id=f"m3_{uid}",
-            normalized_phone=None, invalid_phone=True,
+            store_id=store.id,
+            external_id=f"m3_{uid}",
+            normalized_phone=None,
+            invalid_phone=True,
             tracking_number="WRH-M3",
             current_status="pending_tracking",
         ),
         Order(
-            store_id=store.id, external_id=f"m4_{uid}",
-            normalized_phone="+595984444444", tracking_number="WRH-M4",
-            current_status="in_transit", notification_status="failed",
+            store_id=store.id,
+            external_id=f"m4_{uid}",
+            normalized_phone="+595984444444",
+            tracking_number="WRH-M4",
+            current_status="in_transit",
+            notification_status="failed",
             notification_error="WhatsApp API error",
         ),
     ]

@@ -3,18 +3,18 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from backend.app.core.config import settings
-from backend.app.api.health import router as health_router
 from backend.app.api.auth import router as auth_router
-from backend.app.api.orders import router as orders_router
-from backend.app.api.integrations import api_tn_router, router as integrations_router
+from backend.app.api.health import router as health_router
+from backend.app.api.integrations import api_tn_router
+from backend.app.api.integrations import router as integrations_router
 from backend.app.api.onboarding import router as onboarding_router
-from backend.app.api.webhooks_tn import router as webhooks_tn_router
-from backend.app.api.webhooks_whatsapp import router as webhooks_whatsapp_router
+from backend.app.api.orders import router as orders_router
 from backend.app.api.settings import router as settings_router
 from backend.app.api.ui import router as ui_router
+from backend.app.api.webhooks_tn import router as webhooks_tn_router
+from backend.app.api.webhooks_whatsapp import router as webhooks_whatsapp_router
+from backend.app.core.config import settings
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),

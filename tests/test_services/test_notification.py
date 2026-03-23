@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.models.store import Store, StoreSettings
-from backend.app.models.order import Order
 from backend.app.models.notification import NotificationAttempt
+from backend.app.models.order import Order
+from backend.app.models.store import Store, StoreSettings
 
 
 def _setup_store_and_order(session, **order_overrides):
@@ -156,14 +156,9 @@ class TestNotificationEngine:
 
     def test_whatsapp_disabled_skips_send(self, notif_session):
         from backend.app.services.notification import NotificationEngine
-        from backend.app.services.whatsapp import WhatsAppService
 
         store, order = _setup_store_and_order(notif_session, current_status="in_transit")
-        st = (
-            notif_session.query(StoreSettings)
-            .filter(StoreSettings.store_id == store.id)
-            .first()
-        )
+        st = notif_session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
         st.whatsapp_enabled = False
         notif_session.commit()
 
@@ -179,11 +174,7 @@ class TestNotificationEngine:
         from backend.app.services.notification import NotificationEngine
 
         store, order = _setup_store_and_order(notif_session, current_status="in_transit")
-        st = (
-            notif_session.query(StoreSettings)
-            .filter(StoreSettings.store_id == store.id)
-            .first()
-        )
+        st = notif_session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
         st.whatsapp_include_body_params = False
         notif_session.commit()
 

@@ -21,24 +21,42 @@ def test_build_template_body_components_empty():
 
 def test_graph_send_error_may_benefit_from_retry():
     assert graph_send_error_may_benefit_from_retry({"success": True}) is False
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "131047", "error_message": "x"}
-    ) is False
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "131047:2494010", "error_message": "x"}
-    ) is False
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "4", "error_message": "limit"}
-    ) is True
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "transient", "retry_after": "5"}
-    ) is True
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "not_configured", "error_message": "x"}
-    ) is False
-    assert graph_send_error_may_benefit_from_retry(
-        {"success": False, "error": "mock_failure", "error_message": "x"}
-    ) is True
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "131047", "error_message": "x"}
+        )
+        is False
+    )
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "131047:2494010", "error_message": "x"}
+        )
+        is False
+    )
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "4", "error_message": "limit"}
+        )
+        is True
+    )
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "transient", "retry_after": "5"}
+        )
+        is True
+    )
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "not_configured", "error_message": "x"}
+        )
+        is False
+    )
+    assert (
+        graph_send_error_may_benefit_from_retry(
+            {"success": False, "error": "mock_failure", "error_message": "x"}
+        )
+        is True
+    )
 
 
 def test_verify_meta_webhook_signature_ok():

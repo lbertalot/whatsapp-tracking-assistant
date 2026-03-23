@@ -1,5 +1,5 @@
-import hmac
 import hashlib
+import hmac
 import json
 import logging
 from typing import Optional
@@ -69,7 +69,9 @@ def list_orders(
                 last_message_type=o.last_message_type,
                 last_template_name=o.last_template_name,
                 last_message_preview=o.last_message_preview,
-                last_notification_at=str(o.last_notification_at) if o.last_notification_at else None,
+                last_notification_at=(
+                    str(o.last_notification_at) if o.last_notification_at else None
+                ),
                 error=o.notification_error,
             )
             for o in items
@@ -95,12 +97,14 @@ async def webhook_order(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
 
     existing = (
-        db.query(Order)
-        .filter(Order.store_id == store.id, Order.external_id == payload.id)
-        .first()
+        db.query(Order).filter(Order.store_id == store.id, Order.external_id == payload.id).first()
     )
     if existing:
-        return WebhookOrderResponse(status="received", order_id=existing.id, invalid_phone=existing.invalid_phone)
+        return WebhookOrderResponse(
+            status="received",
+            order_id=existing.id,
+            invalid_phone=existing.invalid_phone,
+        )
 
     raw_phone = payload.customer.phone if payload.customer else None
     normalized = normalize_phone(raw_phone)
@@ -120,7 +124,12 @@ async def webhook_order(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(order)
 
-    logger.info("Order %s ingested for store %s (phone_valid=%s)", order.id, store.id, not is_invalid)
+    logger.info(
+        "Order %s ingested for store %s (phone_valid=%s)",
+        order.id,
+        store.id,
+        not is_invalid,
+    )
 
     return WebhookOrderResponse(
         status="received",

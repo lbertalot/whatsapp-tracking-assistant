@@ -12,6 +12,10 @@ from backend.app.schemas.settings import StoreSettingsResponse, StoreSettingsUpd
 router = APIRouter()
 
 
+def _pct(n: int, d: int) -> float:
+    return round((n / d) * 100, 1) if d > 0 else 0.0
+
+
 @router.get("/panel/stats")
 def panel_stats(
     db: Session = Depends(get_db),
@@ -22,29 +26,30 @@ def panel_stats(
     notified = (
         db.query(func.count(Order.id))
         .filter(Order.store_id == sid, Order.first_notification_at.isnot(None))
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     errors = (
         db.query(func.count(Order.id))
         .filter(Order.store_id == sid, Order.notification_status == "failed")
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     invalid = (
         db.query(func.count(Order.id))
         .filter(Order.store_id == sid, Order.invalid_phone.is_(True))
-        .scalar() or 0
+        .scalar()
+        or 0
     )
-
-    pct = lambda n, d: round((n / d) * 100, 1) if d > 0 else 0.0
 
     return {
         "total_orders": total,
         "orders_notified": notified,
-        "pct_notified": pct(notified, total),
+        "pct_notified": _pct(notified, total),
         "orders_errors": errors,
-        "pct_errors": pct(errors, total),
+        "pct_errors": _pct(errors, total),
         "orders_invalid_phone": invalid,
-        "pct_invalid_phone": pct(invalid, total),
+        "pct_invalid_phone": _pct(invalid, total),
     }
 
 
@@ -54,9 +59,7 @@ def get_settings(
     current_user: StoreUser = Depends(get_current_user),
 ):
     settings = (
-        db.query(StoreSettings)
-        .filter(StoreSettings.store_id == current_user.store_id)
-        .first()
+        db.query(StoreSettings).filter(StoreSettings.store_id == current_user.store_id).first()
     )
     if not settings:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settings not found")
@@ -70,9 +73,7 @@ def update_settings(
     current_user: StoreUser = Depends(get_current_user),
 ):
     settings = (
-        db.query(StoreSettings)
-        .filter(StoreSettings.store_id == current_user.store_id)
-        .first()
+        db.query(StoreSettings).filter(StoreSettings.store_id == current_user.store_id).first()
     )
     if not settings:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settings not found")

@@ -19,8 +19,12 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(user_id: int, store_id: int, expires_delta: Optional[timedelta] = None) -> str:
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+def create_access_token(
+    user_id: int, store_id: int, expires_delta: Optional[timedelta] = None
+) -> str:
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     payload = {"user_id": user_id, "store_id": store_id, "exp": expire}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
@@ -37,7 +41,7 @@ TN_OAUTH_STATE_TTL_MINUTES = 15
 
 
 def create_tn_oauth_state(store_id: int) -> str:
-    """JWT de corta vida para `state` en OAuth Tiendanube (MS-ONB01; vincula callback al store del panel)."""
+    """JWT corto para `state` OAuth TN (MS-ONB01): vincula callback al store del panel."""
     expire = datetime.utcnow() + timedelta(minutes=TN_OAUTH_STATE_TTL_MINUTES)
     payload = {"store_id": store_id, "purpose": TN_OAUTH_PURPOSE, "exp": expire}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)

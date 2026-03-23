@@ -30,6 +30,7 @@ def _store_include_template_body_params(st: Optional[StoreSettings]) -> bool:
         return True
     return bool(st.whatsapp_include_body_params)
 
+
 TEMPLATE_MAP = {
     "in_transit": "shipping_in_transit_v1",
     "delivered": "shipping_delivered_v1",
@@ -59,11 +60,7 @@ class NotificationEngine:
         if event_type is None:
             return {"sent": False, "reason": "already_notified"}
 
-        st = (
-            db.query(StoreSettings)
-            .filter(StoreSettings.store_id == order.store_id)
-            .first()
-        )
+        st = db.query(StoreSettings).filter(StoreSettings.store_id == order.store_id).first()
         if not _store_whatsapp_notifications_enabled(st):
             return {"sent": False, "reason": "whatsapp_disabled"}
 
@@ -80,9 +77,7 @@ class NotificationEngine:
         if existing:
             return {"sent": False, "reason": "already_notified"}
 
-        return self._send_with_retry(
-            db, order, event_type, idempotency_key, store_settings=st
-        )
+        return self._send_with_retry(db, order, event_type, idempotency_key, store_settings=st)
 
     def _get_pending_event(self, order: Order) -> Optional[str]:
         if order.current_status == "in_transit" and not order.notified_in_transit:
@@ -102,15 +97,9 @@ class NotificationEngine:
     ) -> Dict:
         st = store_settings
         if st is None:
-            st = (
-                db.query(StoreSettings)
-                .filter(StoreSettings.store_id == order.store_id)
-                .first()
-            )
+            st = db.query(StoreSettings).filter(StoreSettings.store_id == order.store_id).first()
         include_body = _store_include_template_body_params(st)
-        template_params = (
-            {"order_id": str(order.external_id)} if include_body else {}
-        )
+        template_params = {"order_id": str(order.external_id)} if include_body else {}
 
         template_name = TEMPLATE_MAP.get(event_type, event_type)
         if st:

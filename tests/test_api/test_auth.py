@@ -35,7 +35,11 @@ def test_tn_oauth_state_rejects_wrong_purpose():
     from backend.app.core.security import decode_tn_oauth_state
 
     bad = jwt.encode(
-        {"store_id": 1, "purpose": "other", "exp": datetime.utcnow() + timedelta(minutes=5)},
+        {
+            "store_id": 1,
+            "purpose": "other",
+            "exp": datetime.utcnow() + timedelta(minutes=5),
+        },
         settings.SECRET_KEY,
         algorithm="HS256",
     )

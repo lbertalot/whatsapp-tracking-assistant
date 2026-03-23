@@ -2,8 +2,8 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.core.security import create_access_token, create_tn_oauth_state, hash_password
 from backend.app.db.session import get_db
@@ -165,11 +165,7 @@ def test_tn_callback_valid_state_links_store(onb_engine_client):
     session.expire_all()
     st = session.query(Store).filter(Store.id == store.id).first()
     assert st.external_store_id == str(tn_uid)
-    inst = (
-        session.query(StoreInstallation)
-        .filter(StoreInstallation.store_id == store.id)
-        .first()
-    )
+    inst = session.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).first()
     assert inst is not None
     assert inst.access_token == "tn-token-linked"
     assert inst.is_active is True

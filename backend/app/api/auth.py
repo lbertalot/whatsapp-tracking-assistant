@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.core.dependencies import get_current_user
-from backend.app.core.security import verify_password, create_access_token, hash_password
+from backend.app.core.security import create_access_token, hash_password, verify_password
 from backend.app.db.session import get_db
 from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.models.user import StoreUser
@@ -29,9 +29,7 @@ def _tiendanube_status_for_store(db: Session, store_id: int) -> Tuple[Optional[s
         )
         .first()
     )
-    has_token = bool(
-        inst and inst.is_active and (inst.access_token or "").strip()
-    )
+    has_token = bool(inst and inst.is_active and (inst.access_token or "").strip())
     return store.external_store_id, not has_token
 
 

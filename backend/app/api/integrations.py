@@ -31,9 +31,10 @@ def _onboarding_redirect(query: str) -> RedirectResponse:
 @api_tn_router.get("/install-url", response_model=TiendanubeInstallUrlResponse)
 def install_url_authenticated(current_user: StoreUser = Depends(get_current_user)):
     """URL de autorización Tiendanube con `state` JWT vinculado al store del usuario logueado."""
-    if not (settings.TIENDANUBE_APP_ID or "").strip() or not (
-        settings.TIENDANUBE_CLIENT_SECRET or ""
-    ).strip():
+    if (
+        not (settings.TIENDANUBE_APP_ID or "").strip()
+        or not (settings.TIENDANUBE_CLIENT_SECRET or "").strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Tiendanube no está configurado en el servidor (faltan APP_ID o CLIENT_SECRET).",
@@ -104,9 +105,7 @@ def callback(
         except Exception as e:
             logger.info("TN store name fetch skipped or failed: %s", e)
 
-        settings_row = (
-            db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
-        )
+        settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
         if not settings_row:
             settings_row = StoreSettings(store_id=store.id, onboarding_status="active")
             db.add(settings_row)

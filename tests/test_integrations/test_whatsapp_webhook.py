@@ -51,7 +51,10 @@ def test_whatsapp_webhook_post_rejects_bad_signature(client, wa_webhook_env):
     r = client.post(
         "/webhooks/whatsapp",
         content=body,
-        headers={"X-Hub-Signature-256": "sha256=" + "0" * 64, "Content-Type": "application/json"},
+        headers={
+            "X-Hub-Signature-256": "sha256=" + "0" * 64,
+            "Content-Type": "application/json",
+        },
     )
     assert r.status_code == 403
 
@@ -120,7 +123,9 @@ def test_whatsapp_webhook_status_updates_attempt(client, wa_webhook_env, engine)
     assert r.status_code == 200
 
     db2 = Session()
-    row = db2.query(NotificationAttempt).filter_by(provider_message_id="wamid.webhook_test_1").first()
+    row = (
+        db2.query(NotificationAttempt).filter_by(provider_message_id="wamid.webhook_test_1").first()
+    )
     assert row is not None
     assert row.provider_delivery_status == "delivered"
     assert row.provider_delivery_status_at is not None

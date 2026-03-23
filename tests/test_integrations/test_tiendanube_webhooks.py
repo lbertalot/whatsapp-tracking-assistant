@@ -1,19 +1,19 @@
+import hashlib
+import hmac
 import json
 import time
 import uuid
-import hmac
-import hashlib
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.main import app
-from backend.app.models.store import Store, StoreInstallation
 from backend.app.models.order import Order
+from backend.app.models.store import Store, StoreInstallation
 
 
 @pytest.fixture
@@ -203,11 +203,7 @@ def test_webhook_store_redact(tn_webhook_env, engine):
         st = s2.query(Store).filter(Store.id == store.id).first()
         assert st is not None
         assert st.status == "redacted"
-        inst = (
-            s2.query(StoreInstallation)
-            .filter(StoreInstallation.store_id == store.id)
-            .first()
-        )
+        inst = s2.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).first()
         assert inst.is_active is False
     finally:
         s2.close()

@@ -1,4 +1,3 @@
-import pytest
 from backend.app.services.phone import normalize_phone
 
 

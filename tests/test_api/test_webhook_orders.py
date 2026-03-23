@@ -1,21 +1,21 @@
-import uuid
-import hmac
 import hashlib
+import hmac
 import json
+import uuid
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
+from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.main import app
-from backend.app.core.config import settings
 
 
 @pytest.fixture
 def webhook_env(engine):
-    from backend.app.models.store import Store, StoreInstallation
     from backend.app.models.order import Order
+    from backend.app.models.store import Store, StoreInstallation
 
     Session = sessionmaker(bind=engine)
     session = Session()

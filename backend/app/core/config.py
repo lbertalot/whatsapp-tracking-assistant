@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     WHATSAPP_ACCESS_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_BUSINESS_ACCOUNT_ID: str = ""
-    # Webhook Cloud API (MS-I07): firma con App Secret del app de Meta; verify token arbitrario configurado en el portal
+    # MS-I07: firma con App Secret de Meta; verify token arbitrario en el portal
     META_APP_SECRET: str = ""
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: str = ""
-    # Si True y la tienda no tiene token propio, usar WHATSAPP_ACCESS_TOKEN global (single-tenant / dev).
-    # En producción multi-merchant dejar False y configurar token por tienda (MS-I08).
+    # True: sin token por tienda, usar WHATSAPP_ACCESS_TOKEN global (dev / single-tenant).
+    # Prod multi-merchant: False + token por tienda (MS-I08).
     WHATSAPP_ALLOW_GLOBAL_FALLBACK: bool = True
 
     WERAHA_API_URL: str = ""

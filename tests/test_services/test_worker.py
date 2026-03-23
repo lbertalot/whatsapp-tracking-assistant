@@ -1,12 +1,11 @@
 import uuid
-from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.models.store import Store, StoreSettings
 from backend.app.models.order import Order
+from backend.app.models.store import Store, StoreSettings
 
 
 @pytest.fixture
@@ -18,7 +17,9 @@ def worker_data(engine):
     uid = uuid.uuid4().hex[:8]
 
     active_store = Store(name="Active Store", external_store_id=f"tn_w_{uid}", status="active")
-    inactive_store = Store(name="Inactive Store", external_store_id=f"tn_wi_{uid}", status="pending")
+    inactive_store = Store(
+        name="Inactive Store", external_store_id=f"tn_wi_{uid}", status="pending"
+    )
     session.add_all([active_store, inactive_store])
     session.flush()
 
@@ -61,25 +62,42 @@ def worker_data(engine):
     session.add_all([eligible, no_tracking, inactive_order, already_delivered])
     session.commit()
 
-    yield session, active_store, inactive_store, eligible, no_tracking, inactive_order, already_delivered
+    yield (
+        session,
+        active_store,
+        inactive_store,
+        eligible,
+        no_tracking,
+        inactive_order,
+        already_delivered,
+    )
 
     from backend.app.models.notification import NotificationAttempt
+
     session.query(NotificationAttempt).filter(
         NotificationAttempt.store_id.in_([active_store.id, inactive_store.id])
     ).delete(synchronize_session=False)
-    session.query(Order).filter(
-        Order.store_id.in_([active_store.id, inactive_store.id])
-    ).delete(synchronize_session=False)
+    session.query(Order).filter(Order.store_id.in_([active_store.id, inactive_store.id])).delete(
+        synchronize_session=False
+    )
     session.query(StoreSettings).filter(StoreSettings.store_id == active_store.id).delete()
-    session.query(Store).filter(
-        Store.id.in_([active_store.id, inactive_store.id])
-    ).delete(synchronize_session=False)
+    session.query(Store).filter(Store.id.in_([active_store.id, inactive_store.id])).delete(
+        synchronize_session=False
+    )
     session.commit()
     session.close()
 
 
 def test_worker_selects_eligible_orders(worker_data):
-    session, active_store, inactive_store, eligible, no_tracking, inactive_order, already_delivered = worker_data
+    (
+        session,
+        active_store,
+        inactive_store,
+        eligible,
+        no_tracking,
+        inactive_order,
+        already_delivered,
+    ) = worker_data
     from backend.app.workers.polling import get_eligible_orders
 
     orders = get_eligible_orders(session)

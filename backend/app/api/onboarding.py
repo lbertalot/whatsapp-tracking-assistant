@@ -46,15 +46,9 @@ def onboarding_status(
         .first()
     )
 
-    has_token = bool(
-        inst
-        and inst.is_active
-        and (inst.access_token or "").strip()
-    )
+    has_token = bool(inst and inst.is_active and (inst.access_token or "").strip())
 
-    settings_row = (
-        db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
-    )
+    settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
     onboarding_st = settings_row.onboarding_status if settings_row else "pending"
 
     return OnboardingStatusResponse(

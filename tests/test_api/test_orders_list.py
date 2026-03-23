@@ -1,15 +1,15 @@
 import uuid
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
-from backend.app.core.security import hash_password, create_access_token
+from backend.app.core.security import create_access_token, hash_password
 from backend.app.db.session import get_db
 from backend.app.main import app
+from backend.app.models.order import Order
 from backend.app.models.store import Store
 from backend.app.models.user import StoreUser
-from backend.app.models.order import Order
 
 
 @pytest.fixture
@@ -72,9 +72,13 @@ def orders_env(engine):
     yield client, token_a, store_a, store_b, orders_a
 
     app.dependency_overrides.clear()
-    session.query(Order).filter(Order.store_id.in_([store_a.id, store_b.id])).delete(synchronize_session=False)
+    session.query(Order).filter(Order.store_id.in_([store_a.id, store_b.id])).delete(
+        synchronize_session=False
+    )
     session.query(StoreUser).filter(StoreUser.id == user_a.id).delete()
-    session.query(Store).filter(Store.id.in_([store_a.id, store_b.id])).delete(synchronize_session=False)
+    session.query(Store).filter(Store.id.in_([store_a.id, store_b.id])).delete(
+        synchronize_session=False
+    )
     session.commit()
     session.close()
 
@@ -140,9 +144,15 @@ def test_get_orders_response_schema(orders_env):
     data = response.json()
     item = data["items"][0]
     required_fields = [
-        "order_id", "store_id", "status", "notification_status",
-        "last_message_type", "last_template_name", "last_message_preview",
-        "last_notification_at", "error",
+        "order_id",
+        "store_id",
+        "status",
+        "notification_status",
+        "last_message_type",
+        "last_template_name",
+        "last_message_preview",
+        "last_notification_at",
+        "error",
     ]
     for field in required_fields:
         assert field in item, f"Missing field: {field}"

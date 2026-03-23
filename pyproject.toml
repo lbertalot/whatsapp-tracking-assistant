@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+# Alembic: estilo autogenerado; no formatear.
+force-exclude = "/alembic/versions/"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["backend"]
+skip_glob = ["alembic/versions/*"]
