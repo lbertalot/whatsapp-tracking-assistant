@@ -28,12 +28,14 @@ POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
 
 
 def get_eligible_orders(db: Session) -> List[Order]:
+    # Solo tiendas con Weraha explícitamente habilitado en panel (coherencia con store_settings).
     active_store_ids = (
         db.query(Store.id)
         .join(StoreSettings, StoreSettings.store_id == Store.id)
         .filter(
             Store.status == "active",
             StoreSettings.onboarding_status == "active",
+            StoreSettings.weraha_enabled.is_(True),
         )
         .scalar_subquery()
     )
@@ -52,7 +54,12 @@ def get_eligible_orders(db: Session) -> List[Order]:
 
 def process_order(db: Session, order: Order) -> None:
     try:
-        result = weraha_adapter.get_tracking_status(order.tracking_number)
+        st = db.query(StoreSettings).filter(StoreSettings.store_id == order.store_id).first()
+        account_ref = ((st.weraha_account_reference or "").strip() if st else "") or None
+        result = weraha_adapter.get_tracking_status(
+            order.tracking_number,
+            account_reference=account_ref,
+        )
         raw_status = result.get("status", "")
         mapped = map_raw_status(raw_status)
 

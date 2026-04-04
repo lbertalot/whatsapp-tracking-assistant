@@ -59,6 +59,16 @@ def test_whatsapp_webhook_post_rejects_bad_signature(client, wa_webhook_env):
     assert r.status_code == 403
 
 
+def test_whatsapp_webhook_post_rejects_missing_signature(client, wa_webhook_env):
+    body = b'{"object":"whatsapp_business_account","entry":[]}'
+    r = client.post(
+        "/webhooks/whatsapp",
+        content=body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert r.status_code == 403
+
+
 def test_whatsapp_webhook_post_accepts_valid_signature(client, wa_webhook_env):
     body = b'{"object":"whatsapp_business_account","entry":[]}'
     sig = _sign_body("test-meta-app-secret", body)

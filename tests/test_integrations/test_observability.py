@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.main import app
 from backend.app.models.order import Order
@@ -127,3 +128,25 @@ def test_metrics_calculates_invalid_phone(metrics_env):
     client = metrics_env
     data = client.get("/metrics").json()
     assert data["pct_invalid_phone"] > 0
+
+
+def test_metrics_forbidden_without_key_when_configured(metrics_env, monkeypatch):
+    monkeypatch.setattr(settings, "METRICS_API_KEY", "piloto-metrics-secret")
+    client = metrics_env
+    assert client.get("/metrics").status_code == 403
+    assert (
+        client.get(
+            "/metrics",
+            headers={"X-Metrics-Key": "wrong"},
+        ).status_code
+        == 403
+    )
+
+
+def test_metrics_ok_with_valid_key(metrics_env, monkeypatch):
+    key = "piloto-metrics-secret"
+    monkeypatch.setattr(settings, "METRICS_API_KEY", key)
+    client = metrics_env
+    r = client.get("/metrics", headers={"X-Metrics-Key": key})
+    assert r.status_code == 200
+    assert "total_orders" in r.json()

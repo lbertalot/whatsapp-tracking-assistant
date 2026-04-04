@@ -115,6 +115,31 @@ def test_put_settings_requires_auth(client):
     assert resp.status_code == 401
 
 
+def test_put_weraha_enabled_and_reference(client):
+    db = TestingSession()
+    try:
+        _, _, token = _setup_env(db)
+        resp = client.put(
+            "/api/settings",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"weraha_enabled": False, "weraha_account_reference": "ref-xyz"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["weraha_enabled"] is False
+        assert data["weraha_account_reference"] == "ref-xyz"
+        resp2 = client.put(
+            "/api/settings",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"weraha_enabled": True},
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["weraha_enabled"] is True
+    finally:
+        db.rollback()
+        db.close()
+
+
 def test_put_whatsapp_include_body_params(client):
     db = TestingSession()
     try:

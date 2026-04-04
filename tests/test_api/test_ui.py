@@ -121,6 +121,18 @@ class TestSettingsPage:
         assert "infoWeraha" in response.text
         assert "infoWhatsapp" in response.text
 
+    def test_settings_shows_whatsapp_pilot_hint(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        assert "pilotHintWhatsappSettings" in response.text
+        assert "Notificaciones WhatsApp habilitadas" in response.text
+
+    def test_settings_has_weraha_controls(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        assert "werahaSettingsCard" in response.text
+        assert "btnSaveWeraha" in response.text
+
     def test_settings_has_whatsapp_meta_section(self, client):
         response = client.get("/settings")
         assert response.status_code == 200
@@ -173,6 +185,12 @@ class TestOnboardingPage:
         assert "txtOAuthCallback" in html
         assert "txtWebhookUrl" in html
         assert "/ayuda/conectar-tiendanube" in html
+
+    def test_onboarding_shows_whatsapp_activation_hint(self, client):
+        response = client.get("/onboarding")
+        assert response.status_code == 200
+        assert "pilotHintWhatsappOnboarding" in response.text
+        assert "/settings" in response.text
 
 
 class TestHelpTiendanubePage:

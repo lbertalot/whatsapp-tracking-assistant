@@ -691,14 +691,15 @@ flowchart TD
 - **Depende de**: MS-B06
 - **Objetivo**: Reemplazar mock de Weraha por integración real con API de Weraha
 
-**Estado en repo**: **parcial** — `WerahaAdapter` (`backend/app/services/weraha.py`) llama `GET {WERAHA_API_URL}/tracking/{id}` con `Authorization: Bearer {WERAHA_API_KEY}` y `timeout=10s` cuando `WERAHA_API_URL` es una URL HTTP(S) no vacía; si falta URL o es el placeholder `https://mock`, usa respuesta mock en proceso. **No** usa aún `store_settings.weraha_account_reference` por tienda (solo env global). Contrato público documentado del proveedor: pendiente de cerrar con Weraha.
+**Estado en repo**: **parcial** — `WerahaAdapter` (`backend/app/services/weraha.py`) llama `GET {WERAHA_API_URL}/tracking/{id}` con `Authorization: Bearer {WERAHA_API_KEY}` y `timeout=10s` cuando `WERAHA_API_URL` es una URL HTTP(S) no vacía; si falta URL o es el placeholder `https://mock`, usa respuesta mock en proceso. Por tienda: `StoreSettings.weraha_account_reference` opcional → cabecera `X-Weraha-Account-Ref`; el worker solo consulta Weraha si `weraha_enabled=true` (activable en `/settings` y `PUT /api/settings`). Contrato público documentado del proveedor: pendiente de cerrar con Weraha.
 
 **Tasks**:
 
 - [ ] Investigar/documentar contrato oficial Weraha en producción (URL base, headers, shape JSON)
 - [x] Llamada HTTP real vía `httpx.get` cuando hay `WERAHA_API_URL` configurada
 - [x] Autenticación por API key global (`WERAHA_API_KEY` en `Settings`)
-- [ ] Configuración per-store (`weraha_account_reference` / credenciales por tienda) cableada al adapter
+- [x] `weraha_account_reference` → cabecera `X-Weraha-Account-Ref` en `WerahaAdapter` (contrato Weraha real puede requerir otro mecanismo — MS-I03)
+- [x] `weraha_enabled` + referencia editables en panel (`/settings`) y `PUT /api/settings` (coherente con worker)
 - [x] Mapeo raw → interno en `state_mapper` (variantes EN_CAMINO / ENTREGADO / inglés — ver tests)
 - [x] Manejo básico de errores: excepciones `httpx` → dict con `error` (sin tumbar el worker)
 - [ ] Rate limiting explícito según límites Weraha
@@ -878,7 +879,7 @@ flowchart TD
 - [ ] Métrica `tiempo_a_primera_notificacion` (promedio o histograma)
 - [ ] `pct_errores_whatsapp` desagregado por `error.code` Graph (hoy solo fallos persistidos en orden)
 - [ ] Ratio `delivered`/`sent` desde webhook (requiere agregación explícita; hoy hay `provider_delivery_status` en `NotificationAttempt`)
-- [ ] Proteger `GET /metrics` (API key / IP allowlist / deshabilitar en prod público)
+- [x] Proteger `GET /metrics` opcionalmente — si `METRICS_API_KEY` está definido en env, exige cabecera `X-Metrics-Key` (`backend/app/api/health.py`)
 
 **Tests TDD requeridos** (`tests/test_integrations/test_observability.py`):
 
@@ -1012,6 +1013,7 @@ flowchart TD
 
 **Tasks**:
 
+- [x] Si se usa Weraha: activar **`weraha_enabled`** en `/settings` (por defecto `false` tras registro) y revisar referencia opcional
 - [ ] **Opción A**: `WERAHA_API_URL` + `WERAHA_API_KEY` reales; validar que la respuesta JSON mapee con `state_mapper` / adapter (`GET {base}/tracking/{tracking_number}`)
 - [ ] **Opción B** (explícita): piloto sin Weraha — acordar que los estados vienen solo de TN / datos ya en orden y documentar limitaciones (puede no disparar segunda notificación sin transición)
 - [ ] Si se usa mock accidentalmente (URL vacía o `https://mock`), documentar que **no** representa logística real

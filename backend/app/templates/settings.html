@@ -41,6 +41,10 @@
 
         <div class="settings-card" id="waSettingsCard">
             <h3>WhatsApp (Meta Cloud API)</h3>
+            <div class="alert alert-info" role="status" id="pilotHintWhatsappSettings" style="margin-bottom:1rem;">
+                <strong>Piloto:</strong> por defecto las notificaciones están <strong>desactivadas</strong> hasta que marques
+                «Notificaciones WhatsApp habilitadas» abajo y guardés. Sin eso, el sistema no envía plantillas aunque el resto esté configurado.
+            </div>
             <p>Configura el <strong>Phone number ID</strong> y el <strong>token de acceso</strong> de tu app en
                <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>.
                El token no se muestra después de guardarlo.
@@ -96,6 +100,25 @@
             </div>
         </div>
 
+        <div class="settings-card" id="werahaSettingsCard">
+            <h3>Logística Weraha (polling del worker)</h3>
+            <p class="settings-hint">Si está desactivado, el worker <strong>no</strong> consulta Weraha para esta tienda (no se actualizan estados desde el courier). Requiere <code>WERAHA_API_URL</code> en el servidor.</p>
+            <div class="form-group">
+                <label class="settings-checkbox-label">
+                    <input type="checkbox" id="werahaEnabled"> Consultar Weraha para actualizar el estado del envío
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="werahaAccountRef">Referencia de cuenta Weraha (opcional)</label>
+                <input type="text" id="werahaAccountRef" placeholder="Ej. ID de cuenta en Weraha" autocomplete="off">
+                <div class="settings-hint">Si tu integración lo requiere, se envía en la cabecera <code>X-Weraha-Account-Ref</code> (ver <code>docs/PILOT_READINESS.md</code>).</div>
+            </div>
+            <div class="settings-actions">
+                <button type="button" class="btn btn-primary" id="btnSaveWeraha">Guardar opciones Weraha</button>
+                <span class="text-muted" id="saveWerahaStatus" style="align-self:center;font-size:0.8125rem;"></span>
+            </div>
+        </div>
+
         <div class="settings-card">
             <h3>Estado del sistema</h3>
             <p>Informacion de tu integracion actual.</p>
@@ -145,6 +168,10 @@
     var waTokenStatus = document.getElementById('waTokenStatus');
     var btnSaveWa = document.getElementById('btnSaveWa');
     var saveWaStatus = document.getElementById('saveWaStatus');
+    var werahaEnabled = document.getElementById('werahaEnabled');
+    var werahaAccountRef = document.getElementById('werahaAccountRef');
+    var btnSaveWeraha = document.getElementById('btnSaveWeraha');
+    var saveWerahaStatus = document.getElementById('saveWerahaStatus');
 
     function showAlert(msg, type) {
         alertEl.className = 'alert alert-' + type;
@@ -177,6 +204,9 @@
             waClearToken.checked = false;
             waLang.value = s.whatsapp_template_language || 'es';
             waTokenStatus.textContent = s.whatsapp_token_configured ? 'Si' : 'No';
+
+            werahaEnabled.checked = !!s.weraha_enabled;
+            werahaAccountRef.value = s.weraha_account_reference || '';
 
             document.getElementById('infoWeraha').textContent = s.weraha_enabled ? 'Si' : 'No';
             document.getElementById('infoWhatsapp').textContent = s.whatsapp_enabled ? 'Si' : 'No';
@@ -268,6 +298,37 @@
             showAlert('Error de red. Intenta de nuevo.', 'error');
         } finally {
             btnSaveWa.disabled = false;
+        }
+    });
+
+    btnSaveWeraha.addEventListener('click', async function() {
+        btnSaveWeraha.disabled = true;
+        saveWerahaStatus.textContent = 'Guardando...';
+        try {
+            var resp = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+                body: JSON.stringify({
+                    weraha_enabled: werahaEnabled.checked,
+                    weraha_account_reference: werahaAccountRef.value.trim() || null,
+                }),
+            });
+            if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
+            if (resp.ok) {
+                var saved = await resp.json();
+                saveWerahaStatus.textContent = '';
+                document.getElementById('infoWeraha').textContent = saved.weraha_enabled ? 'Si' : 'No';
+                showAlert('Opciones Weraha guardadas.', 'success');
+            } else {
+                var err = await resp.json();
+                saveWerahaStatus.textContent = '';
+                showAlert('Error: ' + (err.detail || 'No se pudo guardar.'), 'error');
+            }
+        } catch(e) {
+            saveWerahaStatus.textContent = '';
+            showAlert('Error de red. Intenta de nuevo.', 'error');
+        } finally {
+            btnSaveWeraha.disabled = false;
         }
     });
 
