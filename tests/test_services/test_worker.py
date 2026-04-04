@@ -140,6 +140,18 @@ def test_worker_skips_no_tracking(worker_data):
     assert all(o.tracking_number is not None for o in orders)
 
 
+def test_worker_excludes_store_when_weraha_disabled(worker_data):
+    session, active_store, _, eligible, *_ = worker_data
+    from backend.app.workers.polling import get_eligible_orders
+
+    st = session.query(StoreSettings).filter_by(store_id=active_store.id).first()
+    st.weraha_enabled = False
+    session.commit()
+
+    orders = get_eligible_orders(session)
+    assert eligible.id not in [o.id for o in orders]
+
+
 def test_worker_updates_last_checked(worker_data):
     session, _, _, eligible, *_ = worker_data
     from backend.app.workers.polling import process_order

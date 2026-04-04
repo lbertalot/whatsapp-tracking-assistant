@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     TIENDANUBE_APP_ID: str = ""
     TIENDANUBE_CLIENT_SECRET: str = ""
+    # OAuth: scopes separados por espacio (ej. read_orders write_orders).
+    # Vacío = URL sin parámetro scope (comportamiento previo).
+    TIENDANUBE_OAUTH_SCOPE: str = ""
     TIENDANUBE_AUTH_URL: str = "https://www.tiendanube.com/apps/{app_id}/authorize"
     TIENDANUBE_TOKEN_URL: str = "https://www.tiendanube.com/apps/authorize/token"
     TIENDANUBE_API_URL: str = "https://api.tiendanube.com/v1"
@@ -35,6 +38,9 @@ class Settings(BaseSettings):
 
     # Worker loop interval (seconds); override in Docker dev with POLL_INTERVAL_SECONDS=60
     POLL_INTERVAL_SECONDS: int = 300
+
+    # Si no está vacío, GET /metrics exige cabecera X-Metrics-Key (despliegues públicos).
+    METRICS_API_KEY: str = ""
 
 
 settings = Settings()

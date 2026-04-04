@@ -27,6 +27,21 @@ class TestWerahaReal:
         assert result["status"] == "EN_CAMINO"
         assert result["tracking_number"] == "WRH-100"
 
+    def test_real_sends_x_weraha_account_ref_header(self):
+        adapter = self._adapter()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"tracking_number": "T1", "status": "X"}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("backend.app.services.weraha.httpx.get") as mget:
+            mget.return_value = mock_resp
+            adapter.get_tracking_status("T1", account_reference="store-ref-42")
+
+        mget.assert_called_once()
+        _args, kwargs = mget.call_args
+        assert kwargs["headers"]["X-Weraha-Account-Ref"] == "store-ref-42"
+
     def test_real_not_found(self):
         adapter = self._adapter()
         mock_resp = MagicMock()

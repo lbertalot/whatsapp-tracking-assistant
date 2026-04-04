@@ -44,6 +44,7 @@ class StoreSettingsResponse(BaseModel):
 class StoreSettingsUpdate(BaseModel):
     template_in_transit: Optional[str] = None
     template_delivered: Optional[str] = None
+    weraha_enabled: Optional[bool] = None
     weraha_account_reference: Optional[str] = None
     whatsapp_enabled: Optional[bool] = None
     whatsapp_include_body_params: Optional[bool] = None

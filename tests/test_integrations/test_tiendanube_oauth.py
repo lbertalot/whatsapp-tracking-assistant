@@ -5,9 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.main import app
 from backend.app.models.store import Store, StoreInstallation
+from backend.app.services.tiendanube import TiendanubeService
 
 
 @pytest.fixture
@@ -150,3 +152,30 @@ def test_callback_idempotent(tn_env):
     session.query(StoreSettings).filter(StoreSettings.store_id == stores[0].id).delete()
     session.query(Store).filter(Store.id == stores[0].id).delete()
     session.commit()
+
+
+def test_tiendanube_auth_url_includes_scope_and_state(monkeypatch):
+    monkeypatch.setattr(settings, "TIENDANUBE_OAUTH_SCOPE", "read_orders write_orders")
+    monkeypatch.setattr(settings, "TIENDANUBE_APP_ID", "999")
+    monkeypatch.setattr(
+        settings,
+        "TIENDANUBE_AUTH_URL",
+        "https://www.tiendanube.com/apps/{app_id}/authorize",
+    )
+    url = TiendanubeService().get_auth_url(state="jwt-state-abc")
+    assert "scope=" in url
+    assert "state=" in url
+    assert "read_orders" in url
+
+
+def test_tiendanube_auth_url_scope_only_without_state(monkeypatch):
+    monkeypatch.setattr(settings, "TIENDANUBE_OAUTH_SCOPE", "read_orders")
+    monkeypatch.setattr(settings, "TIENDANUBE_APP_ID", "1")
+    monkeypatch.setattr(
+        settings,
+        "TIENDANUBE_AUTH_URL",
+        "https://www.tiendanube.com/apps/{app_id}/authorize",
+    )
+    url = TiendanubeService().get_auth_url(state=None)
+    assert "scope=" in url
+    assert "state=" not in url

@@ -18,11 +18,18 @@ class TiendanubeService:
         self.base_url = settings.APP_BASE_URL
 
     def get_auth_url(self, state: Optional[str] = None) -> str:
+        """URL de autorización TN. Opcional: TIENDANUBE_OAUTH_SCOPE y state (JWT OAuth)."""
         base = settings.TIENDANUBE_AUTH_URL.format(app_id=self.app_id)
-        if not state:
+        scope = (settings.TIENDANUBE_OAUTH_SCOPE or "").strip()
+        parts: list[str] = []
+        if scope:
+            parts.append(f"scope={quote(scope, safe='')}")
+        if state:
+            parts.append(f"state={quote(state, safe='')}")
+        if not parts:
             return base
         sep = "&" if "?" in base else "?"
-        return f"{base}{sep}state={quote(state, safe='')}"
+        return f"{base}{sep}{'&'.join(parts)}"
 
     def get_callback_url(self) -> str:
         return f"{self.base_url}/integrations/tiendanube/callback"
