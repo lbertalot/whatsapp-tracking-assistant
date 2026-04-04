@@ -111,7 +111,7 @@ tests/
 .env.example
 requirements.txt
 Procfile
-runtime.txt
+.python-version
 README.md
 AGENTS.md
 ```
