@@ -107,9 +107,25 @@ tests/          # pytest
 
 ## Despliegue (Heroku)
 
+Alineado con [Getting Started on Heroku with Python](https://devcenter.heroku.com/articles/getting-started-with-python): `requirements.txt`, `Procfile`, `.python-version`, Postgres y [Release Phase](https://devcenter.heroku.com/articles/release-phase) para migraciones.
+
 ```bash
 heroku create wta-app
-heroku addons:create heroku-postgresql:mini
+# Plan mínimo vigente (ver: heroku addons:plans heroku-postgresql)
+heroku addons:create heroku-postgresql:essential-0
 git push heroku main
 heroku ps:scale web=1 worker=1
 ```
+
+- **`release`** en el `Procfile` ejecuta `alembic upgrade head` en cada deploy (antes de que los dynos nuevos reciban tráfico). Revisá en los logs del build la sección *Running release command*.
+- **Python:** la versión se fija con **`.python-version`** (major `3.11`); el buildpack ya no usa `runtime.txt`.
+
+Si el release falló o necesitás aplicar migraciones a mano:
+
+```bash
+heroku run alembic upgrade head
+```
+
+Si no tenés el remoto `heroku` en este clon, usá `-a nombre-de-tu-app` (ej. `heroku run alembic upgrade head -a wta-dev`).
+
+**Webhooks (Tiendanube, Meta):** los dynos **Eco** pueden dormir tras inactividad; el primer request puede tardar. Para entornos donde los callbacks deben ser estables, valorá **`web`** en **Basic** o superior ([Dyno sleeping](https://devcenter.heroku.com/articles/dyno-sleeping)).
