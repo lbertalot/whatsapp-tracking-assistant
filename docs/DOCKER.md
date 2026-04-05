@@ -38,7 +38,7 @@ La primera vez que arranca **web**, el script `docker/entrypoint-web.sh` ejecuta
 
 ## Datos de demostración (como Heroku)
 
-Regenera la tienda **Tienda Demo Paraguay**, usuario de panel y ~10 órdenes (TN-1001 … TN-1010) con la misma mezcla de estados que en el entorno demo:
+Regenera la tienda **Tienda Demo** (ejemplo LatAm), usuario de panel y ~10 órdenes (TN-1001 … TN-1010) con la misma mezcla de estados que en el entorno demo:
 
 ```bash
 docker compose run --rm web python scripts/seed_demo_data.py
@@ -113,8 +113,8 @@ docker compose down -v
 - **`GET /ayuda/...` u otra ruta nueva responde `{"detail":"Not Found"}`:** el contenedor sigue con una imagen antigua; hacé **rebuild** del servicio `web` (ver sección arriba).
 - **El worker arranca antes que las migraciones:** el `worker` depende de `web` con `condition: service_healthy`; `web` corre Alembic antes de exponer `/health`.
 - **Error de conexión a Postgres:** esperá a que el healthcheck de `postgres` esté en verde (`docker compose ps`).
-- **Weraha en dev:** sin `WERAHA_API_URL` HTTP real (o URL placeholder `https://mock`), el adapter usa respuesta mock; no confundir con credenciales Meta/WhatsApp.
-- **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/ADR.md` (ADR-005).
+- **Sync ecommerce:** el worker llama a la API de Tiendanube; sin token/instalación activa no hay reconciliación; no confundir con credenciales Meta/WhatsApp.
+- **Webhook WhatsApp (Meta):** callback público `GET/POST {APP_BASE_URL}/webhooks/whatsapp`. En local hace falta HTTPS expuesto (p. ej. ngrok) y variables `META_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` en `.env.docker`. Guía: [`docs/WHATSAPP_META.md`](WHATSAPP_META.md); decisión técnica: `docs/SPEC.md` (ADR-005).
 
 ## Imagen
 

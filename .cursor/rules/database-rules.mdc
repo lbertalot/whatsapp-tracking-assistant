@@ -3,7 +3,7 @@ description: Reglas para modelo de datos y migraciones
 globs:
   - backend/app/models/**/*.py
   - backend/app/db/**/*.py
-  - "*.sql"
+  "*.sql"
 ---
 
 # Base de datos — Reglas
@@ -11,13 +11,13 @@ globs:
 ## Tablas del sistema
 
 ### Tenancy
-- `stores` — tiendas registradas
-- `store_installations` — fuente de órdenes conectada
-- `store_settings` — configuración de Weraha, WhatsApp, onboarding
+- `stores` — tiendas registradas (p. ej. `country` ISO o vacío)
+- `store_installations` — fuente de órdenes conectada (`order_source_type`, p. ej. `tiendanube`)
+- `store_settings` — sync ecommerce (`ecommerce_sync_enabled`, `default_phone_region`), WhatsApp, onboarding
 - `store_users` — usuarios del panel
 
 ### Negocio
-- `orders` — órdenes con estado logístico y de notificación
+- `orders` — órdenes con estado logístico y de notificación (`platform_status_raw`, `last_status_source`)
 - `notification_attempts` — historial de envíos con idempotencia
 
 ## Reglas de modelo
@@ -29,20 +29,16 @@ globs:
 
 ## Estados de orden
 - `pending_tracking`
-- `ready_for_polling`
 - `in_transit`
 - `delivered`
 - `notification_failed`
 - `invalid_phone`
+- (Legado migrado: `ready_for_polling` → `pending_tracking` en migración ADR-006)
 
 ## Estados de onboarding
 - `pending`
-- `weraha_connected`
-- `whatsapp_connected`
-- `templates_ready`
-- `test_sent`
 - `active`
-- `blocked`
+- (otros valores según producto; el worker exige `active` para reconciliación)
 
 ## Migraciones
 - Usar Alembic

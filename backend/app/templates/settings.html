@@ -100,22 +100,22 @@
             </div>
         </div>
 
-        <div class="settings-card" id="werahaSettingsCard">
-            <h3>Logística Weraha (polling del worker)</h3>
-            <p class="settings-hint">Si está desactivado, el worker <strong>no</strong> consulta Weraha para esta tienda (no se actualizan estados desde el courier). Requiere <code>WERAHA_API_URL</code> en el servidor.</p>
+        <div class="settings-card" id="ecommerceSyncCard">
+            <h3>Tienda online (Tiendanube)</h3>
+            <p class="settings-hint">El estado del envío se obtiene desde <strong>Tiendanube</strong> (webhooks + sincronización periódica). Desactivá solo si necesitás pausar actualizaciones automáticas.</p>
             <div class="form-group">
                 <label class="settings-checkbox-label">
-                    <input type="checkbox" id="werahaEnabled"> Consultar Weraha para actualizar el estado del envío
+                    <input type="checkbox" id="ecommerceSyncEnabled"> Sincronizar estado de pedidos desde la tienda
                 </label>
             </div>
             <div class="form-group">
-                <label for="werahaAccountRef">Referencia de cuenta Weraha (opcional)</label>
-                <input type="text" id="werahaAccountRef" placeholder="Ej. ID de cuenta en Weraha" autocomplete="off">
-                <div class="settings-hint">Si tu integración lo requiere, se envía en la cabecera <code>X-Weraha-Account-Ref</code> (ver <code>docs/PILOT_READINESS.md</code>).</div>
+                <label for="defaultPhoneRegion">Región telefónica por defecto (ISO, ej. PY, AR, MX)</label>
+                <input type="text" id="defaultPhoneRegion" placeholder="PY" maxlength="5" autocomplete="off">
+                <div class="settings-hint">Usada cuando el teléfono del cliente no trae prefijo internacional.</div>
             </div>
             <div class="settings-actions">
-                <button type="button" class="btn btn-primary" id="btnSaveWeraha">Guardar opciones Weraha</button>
-                <span class="text-muted" id="saveWerahaStatus" style="align-self:center;font-size:0.8125rem;"></span>
+                <button type="button" class="btn btn-primary" id="btnSaveEcommerce">Guardar</button>
+                <span class="text-muted" id="saveEcommerceStatus" style="align-self:center;font-size:0.8125rem;"></span>
             </div>
         </div>
 
@@ -125,8 +125,8 @@
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                 <div>
-                    <div class="settings-hint">Weraha habilitado</div>
-                    <div id="infoWeraha" style="font-weight:600;">--</div>
+                    <div class="settings-hint">Sync ecommerce</div>
+                    <div id="infoEcommerceSync" style="font-weight:600;">--</div>
                 </div>
                 <div>
                     <div class="settings-hint">WhatsApp habilitado</div>
@@ -168,10 +168,10 @@
     var waTokenStatus = document.getElementById('waTokenStatus');
     var btnSaveWa = document.getElementById('btnSaveWa');
     var saveWaStatus = document.getElementById('saveWaStatus');
-    var werahaEnabled = document.getElementById('werahaEnabled');
-    var werahaAccountRef = document.getElementById('werahaAccountRef');
-    var btnSaveWeraha = document.getElementById('btnSaveWeraha');
-    var saveWerahaStatus = document.getElementById('saveWerahaStatus');
+    var ecommerceSyncEnabled = document.getElementById('ecommerceSyncEnabled');
+    var defaultPhoneRegion = document.getElementById('defaultPhoneRegion');
+    var btnSaveEcommerce = document.getElementById('btnSaveEcommerce');
+    var saveEcommerceStatus = document.getElementById('saveEcommerceStatus');
 
     function showAlert(msg, type) {
         alertEl.className = 'alert alert-' + type;
@@ -205,10 +205,10 @@
             waLang.value = s.whatsapp_template_language || 'es';
             waTokenStatus.textContent = s.whatsapp_token_configured ? 'Si' : 'No';
 
-            werahaEnabled.checked = !!s.weraha_enabled;
-            werahaAccountRef.value = s.weraha_account_reference || '';
+            ecommerceSyncEnabled.checked = s.ecommerce_sync_enabled !== false;
+            defaultPhoneRegion.value = s.default_phone_region || '';
 
-            document.getElementById('infoWeraha').textContent = s.weraha_enabled ? 'Si' : 'No';
+            document.getElementById('infoEcommerceSync').textContent = s.ecommerce_sync_enabled !== false ? 'Si' : 'No';
             document.getElementById('infoWhatsapp').textContent = s.whatsapp_enabled ? 'Si' : 'No';
             document.getElementById('infoOnboarding').textContent = s.onboarding_status || '—';
             document.getElementById('infoPhoneId').textContent = s.whatsapp_phone_number_id || '—';
@@ -301,34 +301,34 @@
         }
     });
 
-    btnSaveWeraha.addEventListener('click', async function() {
-        btnSaveWeraha.disabled = true;
-        saveWerahaStatus.textContent = 'Guardando...';
+    btnSaveEcommerce.addEventListener('click', async function() {
+        btnSaveEcommerce.disabled = true;
+        saveEcommerceStatus.textContent = 'Guardando...';
         try {
             var resp = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
                 body: JSON.stringify({
-                    weraha_enabled: werahaEnabled.checked,
-                    weraha_account_reference: werahaAccountRef.value.trim() || null,
+                    ecommerce_sync_enabled: ecommerceSyncEnabled.checked,
+                    default_phone_region: defaultPhoneRegion.value.trim() || null,
                 }),
             });
             if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
             if (resp.ok) {
                 var saved = await resp.json();
-                saveWerahaStatus.textContent = '';
-                document.getElementById('infoWeraha').textContent = saved.weraha_enabled ? 'Si' : 'No';
-                showAlert('Opciones Weraha guardadas.', 'success');
+                saveEcommerceStatus.textContent = '';
+                document.getElementById('infoEcommerceSync').textContent = saved.ecommerce_sync_enabled !== false ? 'Si' : 'No';
+                showAlert('Opciones de tienda guardadas.', 'success');
             } else {
                 var err = await resp.json();
-                saveWerahaStatus.textContent = '';
+                saveEcommerceStatus.textContent = '';
                 showAlert('Error: ' + (err.detail || 'No se pudo guardar.'), 'error');
             }
         } catch(e) {
-            saveWerahaStatus.textContent = '';
+            saveEcommerceStatus.textContent = '';
             showAlert('Error de red. Intenta de nuevo.', 'error');
         } finally {
-            btnSaveWeraha.disabled = false;
+            btnSaveEcommerce.disabled = false;
         }
     });
 

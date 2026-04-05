@@ -5,7 +5,7 @@
 [![Security Scanning](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/03-security.yml/badge.svg)](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/03-security.yml)
 [![Docker Build](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/04-docker-build.yml/badge.svg)](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/04-docker-build.yml)
 
-Sistema MVP de notificaciones post-compra por WhatsApp para merchants en Paraguay.
+Sistema MVP de notificaciones post-compra por WhatsApp para merchants en **Latinoamérica** (fuente de verdad: **tienda ecommerce**, MVP: **Tiendanube**).
 
 Reduce consultas WISMO automatizando avisos de estado de envío y dando visibilidad completa al merchant sobre cada notificación.
 
@@ -16,7 +16,7 @@ Reduce consultas WISMO automatizando avisos de estado de envío y dando visibili
 - **UI**: Jinja2 templates integrados al backend
 - **Infraestructura**: Heroku / Docker local
 - **WhatsApp**: Meta Cloud API
-- **Logística**: Weraha API
+- **Estado de envío**: datos de la plataforma de tienda (Tiendanube API + webhooks; sync periódico)
 
 ## Setup local
 
@@ -69,20 +69,18 @@ backend/app/
   db/           # DB session, schema
   models/       # SQLAlchemy models
   schemas/      # Pydantic schemas
-  services/     # Weraha, WhatsApp, notificaciones, phone
+  services/     # Tiendanube, WhatsApp, notificaciones, phone, estado ecommerce
   workers/      # Polling worker
   templates/    # Jinja2 HTML
   static/       # CSS, JS
 
-docs/           # PRD, RFC, ADR
+docs/           # SPEC.md (producto + RFC + ADRs)
 tests/          # pytest
 ```
 
 ## Documentación
 
-- [PRD.md](docs/PRD.md) — Producto
-- [RFC.md](docs/RFC.md) — Diseño técnico
-- [ADR.md](docs/ADR.md) — Decisiones de arquitectura
+- [SPEC.md](docs/SPEC.md) — Producto, diseño técnico (RFC) y decisiones (ADRs)
 - [MILESTONES.md](docs/MILESTONES.md) — Hitos, estado de implementación y tests
 - [PILOT_READINESS.md](docs/PILOT_READINESS.md) — Piloto tienda real (TN + WhatsApp) y DoD
 - [WHATSAPP_META.md](docs/WHATSAPP_META.md) — Meta Cloud API, env vars y panel

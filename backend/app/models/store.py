@@ -12,7 +12,7 @@ class Store(Base):
     id = Column(Integer, primary_key=True, index=True)
     external_store_id = Column(String(100), unique=True, nullable=True)
     name = Column(String(150), nullable=False)
-    country = Column(String(50), default="Paraguay")
+    country = Column(String(50), default="")
     status = Column(String(50), default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -45,8 +45,11 @@ class StoreSettings(Base):
     id = Column(Integer, primary_key=True, index=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, unique=True)
 
-    weraha_enabled = Column(Boolean, default=False)
-    weraha_account_reference = Column(String(100), nullable=True)
+    # Sync order/shipment state from the ecommerce platform API (Tiendanube first; see ADR-006).
+    ecommerce_sync_enabled = Column(Boolean, default=True, nullable=False)
+    # ISO 3166-1 alpha-2 for phonenumbers.parse when the number has no country code
+    # (e.g. PY, AR, MX).
+    default_phone_region = Column(String(5), nullable=True)
 
     whatsapp_enabled = Column(Boolean, default=False)
     # Si False, no se envía `template.components` (plantillas sin variables en el body).

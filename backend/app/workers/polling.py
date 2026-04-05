@@ -1,41 +1,55 @@
+"""Periodic reconciliation: fetch order state from Tiendanube (ecommerce source of truth)."""
+
 import logging
 import time
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
+from httpx import HTTPError
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.models.order import Order
-from backend.app.models.store import Store, StoreSettings
+from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.notification import NotificationEngine
-from backend.app.services.state_mapper import map_raw_status
-from backend.app.services.weraha import WerahaAdapter
+from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_order_status import (
+    ecommerce_order_cancelled,
+    map_tiendanube_order_detail,
+    tracking_from_order_detail,
+)
 
 logger = logging.getLogger(__name__)
 
-_use_mock = settings.APP_ENV in (
-    "testing",
-    "development",
-) and not settings.WERAHA_API_URL.startswith("http")
-
-weraha_adapter = WerahaAdapter()
-# WhatsApp: credenciales por tienda (resolve_for_store) o fallback global según config
+tn_service = TiendanubeService()
 notification_engine = NotificationEngine()
 
-TERMINAL_STATUSES = {"delivered", "notification_failed"}
-POLLABLE_STATUSES = {"pending_tracking", "ready_for_polling", "in_transit"}
+POLLABLE_STATUSES = {"pending_tracking", "in_transit"}
+
+
+def _tn_installation(db: Session, store_id: int) -> Optional[StoreInstallation]:
+    row = (
+        db.query(StoreInstallation)
+        .filter(
+            StoreInstallation.store_id == store_id,
+            StoreInstallation.order_source_type == "tiendanube",
+            StoreInstallation.is_active.is_(True),
+        )
+        .first()
+    )
+    if row and row.access_token and str(row.access_token).strip():
+        return row
+    return None
 
 
 def get_eligible_orders(db: Session) -> List[Order]:
-    # Solo tiendas con Weraha explícitamente habilitado en panel (coherencia con store_settings).
     active_store_ids = (
         db.query(Store.id)
         .join(StoreSettings, StoreSettings.store_id == Store.id)
         .filter(
             Store.status == "active",
             StoreSettings.onboarding_status == "active",
-            StoreSettings.weraha_enabled.is_(True),
+            StoreSettings.ecommerce_sync_enabled.is_(True),
         )
         .scalar_subquery()
     )
@@ -44,8 +58,6 @@ def get_eligible_orders(db: Session) -> List[Order]:
         db.query(Order)
         .filter(
             Order.store_id.in_(active_store_ids),
-            Order.tracking_number.isnot(None),
-            Order.tracking_number != "",
             Order.current_status.in_(POLLABLE_STATUSES),
         )
         .all()
@@ -54,30 +66,75 @@ def get_eligible_orders(db: Session) -> List[Order]:
 
 def process_order(db: Session, order: Order) -> None:
     try:
-        st = db.query(StoreSettings).filter(StoreSettings.store_id == order.store_id).first()
-        account_ref = ((st.weraha_account_reference or "").strip() if st else "") or None
-        result = weraha_adapter.get_tracking_status(
-            order.tracking_number,
-            account_reference=account_ref,
-        )
-        raw_status = result.get("status", "")
-        mapped = map_raw_status(raw_status)
+        inst = _tn_installation(db, order.store_id)
+        if not inst:
+            logger.debug(
+                "Order %s skipped: no active Tiendanube installation for store %s",
+                order.id,
+                order.store_id,
+            )
+            return
 
+        store = db.query(Store).filter(Store.id == order.store_id).first()
+        if not store or not store.external_store_id:
+            logger.warning(
+                "Order %s skipped: store %s missing or without external_store_id",
+                order.id,
+                order.store_id,
+            )
+            return
+
+        try:
+            tn_user_id = int(store.external_store_id)
+            oid = int(str(order.external_id))
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "Order %s skipped: invalid TN ids ext_store=%r ext_order=%r (%s)",
+                order.id,
+                getattr(store, "external_store_id", None),
+                order.external_id,
+                e,
+            )
+            return
+
+        token = inst.access_token.strip()
+        try:
+            detail = tn_service.fetch_order(
+                tn_user_id,
+                oid,
+                token,
+                aggregates="fulfillment_orders",
+            )
+        except (HTTPError, ValueError, TypeError) as e:
+            logger.warning("TN sync fetch_order failed order=%s: %s", order.id, e)
+            return
+
+        track, _ = tracking_from_order_detail(detail)
+        if track and not order.tracking_number:
+            order.tracking_number = track
+
+        merged = dict(detail)
+        mapped = map_tiendanube_order_detail(merged, order_id=order.id)
+        if mapped is None and order.tracking_number and not ecommerce_order_cancelled(merged):
+            mapped = "in_transit"
+
+        raw = str(detail.get("shipping_status") or detail.get("status") or "")[:100] or None
+        order.platform_status_raw = raw
+        order.last_status_source = "sync"
         order.last_checked_at = datetime.utcnow()
 
-        if mapped and mapped != order.current_status:
-            old_status = order.current_status
+        if mapped is None:
+            db.commit()
+            return
+
+        old = order.current_status
+        if mapped != old:
             order.current_status = mapped
             order.last_status_change_at = datetime.utcnow()
-            db.commit()
+            logger.info("Order %s status sync: %s -> %s", order.id, old, mapped)
 
-            logger.info("Order %s status: %s -> %s", order.id, old_status, mapped)
-
-            notif_result = notification_engine.evaluate_and_notify(db, order)
-            if notif_result.get("sent"):
-                logger.info("Order %s notified: %s", order.id, notif_result["event_type"])
-        else:
-            db.commit()
+        db.commit()
+        notification_engine.evaluate_and_notify(db, order)
 
     except Exception:
         logger.exception("Error processing order %s", order.id)
@@ -86,7 +143,7 @@ def process_order(db: Session, order: Order) -> None:
 
 def run_polling_cycle(db: Session) -> int:
     orders = get_eligible_orders(db)
-    logger.info("Polling cycle: %d eligible orders", len(orders))
+    logger.info("Ecommerce sync cycle: %d eligible orders", len(orders))
 
     for order in orders:
         process_order(db, order)
@@ -102,8 +159,7 @@ if __name__ == "__main__":
     from backend.app.db.session import SessionLocal
 
     logger.info(
-        "Worker starting (weraha_mock=%s, interval=%ds, wa_global_fallback=%s)",
-        _use_mock,
+        "Worker starting (tiendanube sync, interval=%ds, wa_global_fallback=%s)",
         settings.POLL_INTERVAL_SECONDS,
         settings.WHATSAPP_ALLOW_GLOBAL_FALLBACK,
     )
@@ -114,7 +170,7 @@ if __name__ == "__main__":
             processed = run_polling_cycle(db)
             logger.info("Cycle complete: %d orders processed", processed)
         except Exception:
-            logger.exception("Polling cycle failed")
+            logger.exception("Sync cycle failed")
         finally:
             db.close()
 

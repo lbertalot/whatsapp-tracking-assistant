@@ -47,7 +47,7 @@ class TestStoreModel:
         store = _make_store(db_session)
         assert store.id is not None
         assert store.name == "Test Store"
-        assert store.country == "Paraguay"
+        assert store.country == ""
         assert store.status == "pending"
 
     def test_store_external_id_unique(self, db_session):
@@ -66,7 +66,7 @@ class TestStoreSettingsModel:
         db_session.add(settings)
         db_session.flush()
         assert settings.onboarding_status == "pending"
-        assert settings.weraha_enabled is False
+        assert settings.ecommerce_sync_enabled is True
         assert settings.whatsapp_enabled is False
         assert settings.whatsapp_include_body_params is True
 
