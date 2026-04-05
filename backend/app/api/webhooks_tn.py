@@ -16,6 +16,7 @@ from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.phone import default_region_for_store, normalize_phone
 from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_order_detail import customer_fields_from_order_detail
 from backend.app.services.tiendanube_order_status import (
     ecommerce_order_cancelled,
     map_tiendanube_order_detail,
@@ -75,19 +76,6 @@ def _tracking_from_webhook_payload(
 
 def _store_settings_row(db: Session, store_id: int) -> Optional[StoreSettings]:
     return db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
-
-
-def _customer_fields_from_order_detail(
-    detail: dict,
-) -> Tuple[Optional[str], Optional[str]]:
-    customer = detail.get("customer") if isinstance(detail.get("customer"), dict) else {}
-    raw_phone = detail.get("contact_phone") or customer.get("phone") or detail.get("billing_phone")
-    if raw_phone is not None:
-        raw_phone = str(raw_phone).strip() or None
-    name = detail.get("contact_name") or customer.get("name")
-    if name is not None:
-        name = str(name).strip() or None
-    return raw_phone, name
 
 
 @router.post("/webhooks/tiendanube")
@@ -198,7 +186,7 @@ def _handle_order_create_or_paid(
             detail="Temporary failure fetching order from Tiendanube",
         ) from e
 
-    raw_phone, name = _customer_fields_from_order_detail(detail)
+    raw_phone, name = customer_fields_from_order_detail(detail)
     st = _store_settings_row(db, store.id)
     region = default_region_for_store(store, st)
     normalized = normalize_phone(raw_phone, region)
@@ -358,7 +346,7 @@ def _handle_order_fulfilled(
         tracking = tracking or api_track2
         tracking_url = tracking_url or api_url2
 
-    raw_phone, name = _customer_fields_from_order_detail(detail)
+    raw_phone, name = customer_fields_from_order_detail(detail)
     st = _store_settings_row(db, store.id)
     region = default_region_for_store(store, st)
     normalized = normalize_phone(raw_phone, region)

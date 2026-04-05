@@ -103,6 +103,18 @@
         <div class="settings-card" id="ecommerceSyncCard">
             <h3>Tienda online (Tiendanube)</h3>
             <p class="settings-hint">El estado del envío se obtiene desde <strong>Tiendanube</strong> (webhooks + sincronización periódica). Desactivá solo si necesitás pausar actualizaciones automáticas.</p>
+
+            <div class="form-group" id="tnReconnectBlock">
+                <p class="settings-hint" id="tnImportHint" style="margin-bottom:0.5rem;">—</p>
+                <button type="button" class="btn btn-outline" id="btnReconnectTn">Reconectar con Tiendanube</button>
+                <div class="settings-hint" style="margin-top:0.5rem;">Volvé a autorizar la app en Tiendanube para renovar el acceso o <strong>reintentar la importación</strong> de los últimos pedidos si la primera vez falló.</div>
+                <div style="margin-top:0.85rem;">
+                    <button type="button" class="btn btn-outline" id="btnReimportTnOrders">Reimportar órdenes (sin OAuth)</button>
+                    <div class="settings-hint" style="margin-top:0.5rem;">Reintenta traer los últimos pedidos con el <strong>acceso ya guardado</strong> (no abre Tiendanube). Útil si hubo un fallo temporal de red o de la API.</div>
+                    <span class="text-muted" id="reimportTnStatus" style="display:block;margin-top:0.35rem;font-size:0.8125rem;"></span>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label class="settings-checkbox-label">
                     <input type="checkbox" id="ecommerceSyncEnabled"> Sincronizar estado de pedidos desde la tienda
@@ -172,6 +184,10 @@
     var defaultPhoneRegion = document.getElementById('defaultPhoneRegion');
     var btnSaveEcommerce = document.getElementById('btnSaveEcommerce');
     var saveEcommerceStatus = document.getElementById('saveEcommerceStatus');
+    var btnReconnectTn = document.getElementById('btnReconnectTn');
+    var btnReimportTnOrders = document.getElementById('btnReimportTnOrders');
+    var reimportTnStatus = document.getElementById('reimportTnStatus');
+    var tnImportHint = document.getElementById('tnImportHint');
 
     function showAlert(msg, type) {
         alertEl.className = 'alert alert-' + type;
@@ -185,7 +201,12 @@
         content.style.display = 'none';
 
         try {
-            var resp = await fetch('/api/settings', { headers: authHeaders() });
+            var pair = await Promise.all([
+                fetch('/api/settings', { headers: authHeaders() }),
+                fetch('/api/onboarding/status', { headers: authHeaders() }),
+            ]);
+            var resp = pair[0];
+            var onbResp = pair[1];
             if (resp.status === 401) { clearToken(); window.location.href = '/login'; return; }
             if (!resp.ok) {
                 loadS.style.display = 'none';
@@ -194,6 +215,35 @@
             }
 
             var s = await resp.json();
+            if (onbResp.ok) {
+                var ob = await onbResp.json();
+                if (tnImportHint) {
+                    tnImportHint.textContent = ob.initial_orders_import_completed
+                        ? 'Importación inicial de pedidos: completada.'
+                        : 'Importación inicial de pedidos: pendiente o incompleta (reconectá para reintentar).';
+                }
+                if (btnReconnectTn) {
+                    if (!ob.tiendanube_app_configured) {
+                        btnReconnectTn.disabled = true;
+                        btnReconnectTn.title = 'Configuración incompleta en el servidor';
+                    } else {
+                        btnReconnectTn.disabled = false;
+                        btnReconnectTn.title = '';
+                    }
+                }
+                if (btnReimportTnOrders) {
+                    var canReimport = ob.tiendanube_app_configured && !ob.needs_tiendanube && ob.installation_active;
+                    if (!canReimport) {
+                        btnReimportTnOrders.disabled = true;
+                        btnReimportTnOrders.title = ob.needs_tiendanube
+                            ? 'Conectá Tiendanube primero desde Onboarding'
+                            : 'No hay instalación activa con token';
+                    } else {
+                        btnReimportTnOrders.disabled = false;
+                        btnReimportTnOrders.title = '';
+                    }
+                }
+            }
             tplIn.value = s.template_in_transit || '';
             tplDel.value = s.template_delivered || '';
 
@@ -331,6 +381,63 @@
             btnSaveEcommerce.disabled = false;
         }
     });
+
+    if (btnReconnectTn) {
+        btnReconnectTn.addEventListener('click', function() {
+            var btn = this;
+            if (btn.disabled) return;
+            btn.disabled = true;
+            fetch('/api/integrations/tiendanube/install-url', { headers: authHeaders() })
+                .then(function(r) {
+                    if (r.status === 401) { clearToken(); window.location.href = '/login'; return; }
+                    if (r.status === 503) {
+                        return r.json().then(function(body) {
+                            var d = body && body.detail;
+                            var msg = Array.isArray(d) ? d.join(' ') : (d || 'Servicio no disponible');
+                            throw new Error(msg);
+                        });
+                    }
+                    return r.json();
+                })
+                .then(function(data) {
+                    if (data && data.url) window.location.href = data.url;
+                    else throw new Error('Sin URL de autorización');
+                })
+                .catch(function(e) {
+                    showAlert((e && e.message) ? e.message : 'No se pudo iniciar la reconexión con Tiendanube.', 'error');
+                    btn.disabled = false;
+                });
+        });
+    }
+
+    if (btnReimportTnOrders) {
+        btnReimportTnOrders.addEventListener('click', async function() {
+            var btn = this;
+            if (btn.disabled) return;
+            btn.disabled = true;
+            if (reimportTnStatus) reimportTnStatus.textContent = '';
+            try {
+                var r = await fetch('/api/integrations/tiendanube/reimport-orders', {
+                    method: 'POST',
+                    headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+                    body: '{}',
+                });
+                if (r.status === 401) { clearToken(); window.location.href = '/login'; return; }
+                var data = await r.json().catch(function() { return {}; });
+                if (!r.ok) {
+                    var d = data.detail;
+                    var msg = Array.isArray(d) ? d.map(function(x) { return x.msg || x; }).join(' ') : (d || 'No se pudo programar la reimportación');
+                    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+                }
+                if (reimportTnStatus) reimportTnStatus.textContent = 'Importación programada. En unos segundos actualizá el panel de órdenes.';
+                showAlert('Reimportación de pedidos programada. Podés revisar el panel en breve.', 'success');
+            } catch (e) {
+                showAlert((e && e.message) ? e.message : 'Error al reimportar.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
 
     loadSettings();
     }

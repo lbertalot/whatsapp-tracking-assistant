@@ -59,6 +59,35 @@ class TiendanubeService:
         resp.raise_for_status()
         return resp.json()
 
+    def fetch_orders(
+        self,
+        user_id: int,
+        access_token: str,
+        *,
+        page: int = 1,
+        per_page: int = 100,
+        aggregates: Optional[str] = "fulfillment_orders",
+        timeout: float = 45.0,
+    ) -> list[dict]:
+        """GET /{user_id}/orders — paginated list (Nuvemshop returns a JSON array)."""
+        per_page = min(max(per_page, 1), 200)
+        page = max(page, 1)
+        params: dict[str, int | str] = {"page": page, "per_page": per_page}
+        if aggregates:
+            params["aggregates"] = aggregates
+        resp = httpx.get(
+            f"{self.api_url}/{user_id}/orders",
+            headers={"Authentication": f"bearer {access_token}"},
+            params=params,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list):
+            logger.warning("TN fetch_orders: unexpected JSON type %s", type(data))
+            return []
+        return data
+
     def fetch_order(
         self,
         user_id: int,

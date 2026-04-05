@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from urllib.parse import urljoin
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -12,8 +12,12 @@ from backend.app.core.security import create_tn_oauth_state, decode_tn_oauth_sta
 from backend.app.db.session import get_db
 from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.models.user import StoreUser
-from backend.app.schemas.onboarding import TiendanubeInstallUrlResponse
+from backend.app.schemas.onboarding import (
+    TiendanubeInstallUrlResponse,
+    TiendanubeReimportOrdersResponse,
+)
 from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_initial_import import run_initial_orders_import_task
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +48,51 @@ def install_url_authenticated(current_user: StoreUser = Depends(get_current_user
     return TiendanubeInstallUrlResponse(url=url)
 
 
+@api_tn_router.post("/reimport-orders", response_model=TiendanubeReimportOrdersResponse)
+def reimport_orders_scheduled(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: StoreUser = Depends(get_current_user),
+):
+    """
+    MS-ONB03: reintenta la importación bulk con el token TN ya guardado (sin flujo OAuth).
+    Resetea `tn_initial_import_completed_at` y encola la misma tarea que tras OAuth.
+    """
+    store = db.query(Store).filter(Store.id == current_user.store_id).first()
+    if not store or not (store.external_store_id or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tiendanube no está vinculada a esta tienda.",
+        )
+    installation = (
+        db.query(StoreInstallation)
+        .filter(
+            StoreInstallation.store_id == store.id,
+            StoreInstallation.order_source_type == "tiendanube",
+            StoreInstallation.is_active.is_(True),
+        )
+        .first()
+    )
+    if not installation or not (installation.access_token or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No hay instalación Tiendanube activa con token.",
+        )
+
+    settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    if not settings_row:
+        settings_row = StoreSettings(store_id=store.id, onboarding_status="active")
+        db.add(settings_row)
+        db.flush()
+
+    settings_row.tn_initial_import_completed_at = None
+    db.commit()
+
+    background_tasks.add_task(run_initial_orders_import_task, store.id)
+    logger.info("TN reimport orders scheduled store_id=%s", store.id)
+    return TiendanubeReimportOrdersResponse(status="scheduled")
+
+
 @router.get("/install")
 def install():
     return RedirectResponse(url=tn_service.get_auth_url(), status_code=302)
@@ -51,6 +100,7 @@ def install():
 
 @router.get("/callback")
 def callback(
+    background_tasks: BackgroundTasks,
     code: str = Query(...),
     state: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -134,7 +184,12 @@ def callback(
             )
             db.add(installation)
 
+        # Reconnect (MS-ONB03): allow initial bulk import to run again after a new OAuth success.
+        settings_row.tn_initial_import_completed_at = None
+
         db.commit()
+
+        background_tasks.add_task(run_initial_orders_import_task, store.id)
 
         try:
             tn_service.register_webhooks(int(user_id), access_token)
@@ -179,7 +234,13 @@ def callback(
         )
         db.add(installation)
 
+    ss_legacy = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    if ss_legacy:
+        ss_legacy.tn_initial_import_completed_at = None
+
     db.commit()
+
+    background_tasks.add_task(run_initial_orders_import_task, store.id)
 
     logger.info("TN store %s installed/updated (legacy, no state)", user_id)
 
