@@ -8,6 +8,16 @@ Documento de **estado técnico y operativo** para el siguiente paso del proyecto
 
 La **fuente de verdad** es el código; este documento resume hallazgos alineados al repo y se actualiza cuando cambie el comportamiento implementado.
 
+### Migración y rollback (ecommerce como fuente de verdad — ADR-006)
+
+**Prerrequisitos en producción:** `alembic upgrade head`; cada tienda que use sync debe tener **instalación Tiendanube activa** con `access_token` y onboarding activo.
+
+**Datos legados:** órdenes en estado `ready_for_polling` pasan a `pending_tracking` (no a `in_transit`) para no asumir un envío confirmado sin una lectura coherente desde TN.
+
+**Rollback:** `alembic downgrade` elimina columnas de sync/auditoría y puede **perder** flags como `ecommerce_sync_enabled` — no usar en producción sin backup de DB y plan acordado.
+
+**Post-deploy:** revisar logs del worker (`TN sync fetch_order failed`, errores HTTP) y el panel para órdenes sin estado esperado.
+
 ---
 
 ## 1. Resumen ejecutivo
