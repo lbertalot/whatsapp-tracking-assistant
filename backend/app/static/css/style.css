@@ -937,8 +937,24 @@ a:hover {
     font-size: var(--text-lg);
 }
 
-.brand-icon {
-    font-size: var(--text-xl);
+.brand-logo {
+    display: block;
+    height: 32px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.dark .brand-logo {
+    filter: brightness(1.08);
+}
+
+@media (max-width: 480px) {
+    .brand-logo {
+        height: 28px;
+        max-width: 100px;
+    }
 }
 
 .header-nav {
