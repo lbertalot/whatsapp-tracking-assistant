@@ -44,3 +44,9 @@ def help_connect_tiendanube(request: Request):
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request):
     return templates.TemplateResponse(request, "settings.html")
+
+
+@router.get("/design-system", response_class=HTMLResponse)
+def design_system_page(request: Request):
+    """Design system documentation and component showcase."""
+    return templates.TemplateResponse(request, "design-system.html")
