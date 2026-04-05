@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from urllib.parse import urljoin
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.models.user import StoreUser
 from backend.app.schemas.onboarding import TiendanubeInstallUrlResponse
 from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_initial_import import run_initial_orders_import_task
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ def install():
 
 @router.get("/callback")
 def callback(
+    background_tasks: BackgroundTasks,
     code: str = Query(...),
     state: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -136,6 +138,8 @@ def callback(
 
         db.commit()
 
+        background_tasks.add_task(run_initial_orders_import_task, store.id)
+
         try:
             tn_service.register_webhooks(int(user_id), access_token)
         except Exception as e:
@@ -180,6 +184,8 @@ def callback(
         db.add(installation)
 
     db.commit()
+
+    background_tasks.add_task(run_initial_orders_import_task, store.id)
 
     logger.info("TN store %s installed/updated (legacy, no state)", user_id)
 

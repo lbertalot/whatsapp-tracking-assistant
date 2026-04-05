@@ -15,8 +15,6 @@ from sqlalchemy.pool import StaticPool
 
 import backend.app.models  # noqa: F401
 from backend.app.db.base import Base
-from backend.app.db.session import get_db
-from backend.app.main import app
 
 TEST_ENGINE = create_engine(
     "sqlite://",
@@ -35,6 +33,18 @@ def _enable_sqlite_fk(dbapi_conn, connection_record):
 Base.metadata.create_all(bind=TEST_ENGINE)
 
 TestingSession = sessionmaker(bind=TEST_ENGINE)
+
+# Background tasks and any code using SessionLocal() must share TEST_ENGINE (one in-memory DB).
+import backend.app.db.session as _db_session
+
+_db_session.SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=TEST_ENGINE,
+)
+
+from backend.app.db.session import get_db
+from backend.app.main import app
 
 
 @pytest.fixture(scope="session")

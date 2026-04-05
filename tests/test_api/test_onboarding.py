@@ -92,8 +92,11 @@ def test_onboarding_status_linked(auth_env, engine):
     token = create_access_token(user.id, store.id)
     r = client.get("/api/onboarding/status", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json()["needs_tiendanube"] is False
-    assert r.json()["installation_active"] is True
+    data = r.json()
+    assert data["needs_tiendanube"] is False
+    assert data["installation_active"] is True
+    assert "initial_orders_import_completed" in data
+    assert data["initial_orders_import_completed"] is False
 
 
 def test_tn_install_url_requires_auth(client):
@@ -153,10 +156,14 @@ def test_tn_callback_valid_state_links_store(onb_engine_client):
             return_value={"name": {"es": "Mi Tienda Demo"}},
         ):
             with patch.object(integ_mod.tn_service, "register_webhooks", return_value=None):
-                r = client.get(
-                    f"/integrations/tiendanube/callback?code=auth-code-test&state={state}",
-                    follow_redirects=False,
-                )
+                with patch(
+                    "backend.app.services.tiendanube_initial_import.tn_service.fetch_orders",
+                    return_value=[],
+                ):
+                    r = client.get(
+                        f"/integrations/tiendanube/callback?code=auth-code-test&state={state}",
+                        follow_redirects=False,
+                    )
 
     assert r.status_code == 302
     assert "onboarding" in r.headers["location"]
@@ -169,6 +176,9 @@ def test_tn_callback_valid_state_links_store(onb_engine_client):
     assert inst is not None
     assert inst.access_token == "tn-token-linked"
     assert inst.is_active is True
+    sett = session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    assert sett is not None
+    assert sett.tn_initial_import_completed_at is not None
 
 
 def test_tn_callback_invalid_state_redirect(onb_engine_client):

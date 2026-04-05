@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Worker loop interval (seconds); override in Docker dev with POLL_INTERVAL_SECONDS=60
     POLL_INTERVAL_SECONDS: int = 300
 
+    # MS-ONB03: max orders to fetch on first Tiendanube link (API cap 200 per page).
+    TN_ONBOARDING_IMPORT_LIMIT: int = 100
+
     # Si no está vacío, GET /metrics exige cabecera X-Metrics-Key (despliegues públicos).
     METRICS_API_KEY: str = ""
 
