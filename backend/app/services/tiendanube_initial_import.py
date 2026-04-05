@@ -119,7 +119,9 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
 
     store = db.query(Store).filter(Store.id == store_id).first()
     if not store or not store.external_store_id:
-        logger.warning("TN initial import skipped: missing store or external_store_id id=%s", store_id)
+        logger.warning(
+            "TN initial import skipped: missing store or external_store_id id=%s", store_id
+        )
         return
 
     inst = _tn_installation(db, store_id)

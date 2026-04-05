@@ -20,7 +20,9 @@ def import_store(engine):
     Session = sessionmaker(bind=engine)
     session = Session()
     uid = uuid.uuid4().hex[:8]
-    store = Store(name="Import Store", external_store_id=str(555001 + hash(uid) % 10000), status="active")
+    store = Store(
+        name="Import Store", external_store_id=str(555001 + hash(uid) % 10000), status="active"
+    )
     session.add(store)
     session.flush()
     session.add(StoreSettings(store_id=store.id, onboarding_status="active"))

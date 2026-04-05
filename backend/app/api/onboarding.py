@@ -51,9 +51,7 @@ def onboarding_status(
 
     settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
     onboarding_st = settings_row.onboarding_status if settings_row else "pending"
-    import_done = bool(
-        settings_row and settings_row.tn_initial_import_completed_at is not None
-    )
+    import_done = bool(settings_row and settings_row.tn_initial_import_completed_at is not None)
 
     return OnboardingStatusResponse(
         needs_tiendanube=not has_token,
