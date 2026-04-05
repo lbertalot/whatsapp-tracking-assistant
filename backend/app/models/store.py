@@ -63,6 +63,8 @@ class StoreSettings(Base):
     template_delivered = Column(String(100), nullable=True)
 
     onboarding_status = Column(String(50), default="pending")
+    # MS-ONB03: set when first TN orders bulk import finished (success).
+    tn_initial_import_completed_at = Column(DateTime, nullable=True)
     test_message_status = Column(String(50), nullable=True)
     last_onboarding_error = Column(Text, nullable=True)
 
