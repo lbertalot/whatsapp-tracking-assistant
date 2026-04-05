@@ -1,6 +1,6 @@
 # Docker (paridad local con Heroku)
 
-El `Procfile` de Heroku define **`release`** (`alembic upgrade head`), **web** (`uvicorn`) y **worker** (`python -m backend.app.workers.polling`). En Heroku la versión de Python se declara en **`.python-version`** (`3.11`).  
+El `Procfile` de Heroku define **`release`** (`alembic upgrade head`), **web** (`uvicorn`) y **worker** (`python -m backend.app.workers.polling`). En Heroku la versión de Python se declara en **`.python-version`** (`3.12`).  
 `docker-compose.yml` levanta los mismos procesos más **PostgreSQL 16**.
 
 ## Requisitos
