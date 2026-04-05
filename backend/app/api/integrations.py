@@ -237,6 +237,9 @@ def callback(
     ss_legacy = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
     if ss_legacy:
         ss_legacy.tn_initial_import_completed_at = None
+    else:
+        ss_legacy = StoreSettings(store_id=store.id, onboarding_status="pending")
+        db.add(ss_legacy)
 
     db.commit()
 
