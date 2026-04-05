@@ -18,7 +18,7 @@ def _setup_store_and_order(session, **order_overrides):
     settings = StoreSettings(
         store_id=store.id,
         onboarding_status="active",
-        weraha_enabled=True,
+        ecommerce_sync_enabled=True,
         whatsapp_enabled=True,
     )
     session.add(settings)

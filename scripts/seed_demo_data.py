@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Regenera datos de demostración (Tienda Demo Paraguay + ~10 órdenes).
+Regenera datos de demostración (tienda demo LatAm + ~10 órdenes).
 
 Uso local / Docker:
   python scripts/seed_demo_data.py
@@ -112,9 +112,9 @@ def seed() -> None:
         now = datetime.utcnow()
 
         store = Store(
-            name="Tienda Demo Paraguay",
+            name="Tienda Demo",
             external_store_id=store_external_id,
-            country="Paraguay",
+            country="PY",
             status="active",
         )
         db.add(store)
@@ -122,7 +122,7 @@ def seed() -> None:
 
         settings = StoreSettings(
             store_id=store.id,
-            weraha_enabled=True,
+            ecommerce_sync_enabled=True,
             whatsapp_enabled=True,
             whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or "demo-phone-id",
             template_in_transit="shipping_in_transit_v1",
@@ -175,7 +175,7 @@ def seed() -> None:
                 "customer_name": "Carlos Lopez",
                 "phone": "+595981111002",
                 "tracking": "WH-DEMO-1002",
-                "status": "ready_for_polling",
+                "status": "in_transit",
                 "notif": None,
                 "invalid": False,
             },
@@ -274,7 +274,7 @@ def seed() -> None:
                 raw_phone=row["phone"],
                 normalized_phone=None if row["invalid"] else row["phone"],
                 tracking_number=row["tracking"],
-                tracking_url=f"https://weraha.example/track/{row['tracking']}",
+                tracking_url=f"https://carrier.example/track/{row['tracking']}",
                 current_status=row["status"],
                 invalid_phone=row["invalid"],
                 notified_in_transit=row.get("notified_in_transit", False),

@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+from datetime import datetime
 from typing import Any, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -11,14 +12,17 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.models.order import Order
-from backend.app.models.store import Store, StoreInstallation
-from backend.app.services.phone import normalize_phone
+from backend.app.models.store import Store, StoreInstallation, StoreSettings
+from backend.app.services.notification import NotificationEngine
+from backend.app.services.phone import default_region_for_store, normalize_phone
 from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_order_status import map_tiendanube_order_detail, tracking_from_order_detail
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 tn_service = TiendanubeService()
+notification_engine = NotificationEngine()
 
 LGPD_EVENTS = {"store/redact", "customers/redact", "customers/data_request"}
 ORDER_CREATE_EVENTS = {"order/created", "order/paid"}
@@ -65,19 +69,8 @@ def _tracking_from_webhook_payload(
     return None, None
 
 
-def _tracking_from_order_detail(detail: dict) -> Tuple[Optional[str], Optional[str]]:
-    for key in ("fulfillments", "fulfillment_orders"):
-        rows = detail.get(key)
-        if not isinstance(rows, list):
-            continue
-        for fo in rows:
-            if not isinstance(fo, dict):
-                continue
-            info = fo.get("tracking_info")
-            if isinstance(info, dict) and info.get("code"):
-                u = info.get("url")
-                return str(info["code"]), str(u) if u else None
-    return None, None
+def _store_settings_row(db: Session, store_id: int) -> Optional[StoreSettings]:
+    return db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
 
 
 def _customer_fields_from_order_detail(
@@ -202,7 +195,9 @@ def _handle_order_create_or_paid(
         ) from e
 
     raw_phone, name = _customer_fields_from_order_detail(detail)
-    normalized = normalize_phone(raw_phone)
+    st = _store_settings_row(db, store.id)
+    region = default_region_for_store(store, st)
+    normalized = normalize_phone(raw_phone, region)
     is_invalid = raw_phone is not None and normalized is None
 
     order = Order(
@@ -215,6 +210,8 @@ def _handle_order_create_or_paid(
         tracking_number=None,
         tracking_url=None,
         current_status="pending_tracking",
+        last_status_source="webhook",
+        platform_status_raw=(str(detail.get("status") or "")[:100] or None),
     )
     db.add(order)
     db.commit()
@@ -222,6 +219,48 @@ def _handle_order_create_or_paid(
 
     logger.info("TN order %s ingested from API for store %s", order.id, store.id)
     return {"status": "received", "order_id": order.id}
+
+
+def _tn_platform_snapshot(payload: dict, detail: Optional[dict], tracking: Optional[str]) -> str:
+    if detail:
+        return (str(detail.get("shipping_status") or detail.get("status") or "")[:100]) or "unknown"
+    if tracking:
+        return str(payload.get("shipping_status") or "shipped")[:100]
+    return "unknown"
+
+
+def _transition_order_from_tn(
+    db: Session,
+    order: Order,
+    *,
+    detail: Optional[dict],
+    payload: dict,
+    tracking: Optional[str],
+) -> None:
+    """Set status from ecommerce payload; notify when status advances or templates are still pending."""
+    merged: dict[str, Any] = dict(detail) if detail else {}
+    if tracking and not merged.get("fulfillment_orders"):
+        merged = {
+            **merged,
+            "shipping_status": merged.get("shipping_status") or payload.get("shipping_status") or "shipped",
+            "fulfillment_orders": [{"tracking_info": {"code": tracking}}],
+        }
+    mapped = map_tiendanube_order_detail(merged)
+    if mapped is None and tracking:
+        mapped = "in_transit"
+    if mapped is None:
+        db.commit()
+        return
+
+    order.platform_status_raw = _tn_platform_snapshot(payload, detail, tracking)
+    order.last_status_source = "webhook"
+    old = order.current_status
+    if mapped != old:
+        order.current_status = mapped
+        order.last_status_change_at = datetime.utcnow()
+    db.commit()
+    db.refresh(order)
+    notification_engine.evaluate_and_notify(db, order)
 
 
 def _handle_order_fulfilled(
@@ -240,9 +279,7 @@ def _handle_order_fulfilled(
     if existing and w_track:
         existing.tracking_number = w_track
         existing.tracking_url = w_url
-        if existing.current_status in (None, "pending_tracking"):
-            existing.current_status = "ready_for_polling"
-        db.commit()
+        _transition_order_from_tn(db, existing, detail=None, payload=payload, tracking=w_track)
         logger.info("Order %s tracking updated from webhook: %s", existing.id, w_track)
         return {"status": "received", "order_id": existing.id, "tracking_updated": True}
 
@@ -264,7 +301,7 @@ def _handle_order_fulfilled(
                 e,
             )
 
-    api_track, api_url = _tracking_from_order_detail(detail) if detail else (None, None)
+    api_track, api_url = tracking_from_order_detail(detail) if detail else (None, None)
     tracking = w_track or api_track
     tracking_url = w_url or api_url
 
@@ -272,9 +309,7 @@ def _handle_order_fulfilled(
         if tracking:
             existing.tracking_number = tracking
             existing.tracking_url = tracking_url
-            if existing.current_status in (None, "pending_tracking"):
-                existing.current_status = "ready_for_polling"
-            db.commit()
+            _transition_order_from_tn(db, existing, detail=detail, payload=payload, tracking=tracking)
             logger.info("Order %s tracking updated: %s", existing.id, tracking)
             return {
                 "status": "received",
@@ -305,13 +340,21 @@ def _handle_order_fulfilled(
             ) from e
 
     if not w_track:
-        api_track2, api_url2 = _tracking_from_order_detail(detail)
+        api_track2, api_url2 = tracking_from_order_detail(detail)
         tracking = tracking or api_track2
         tracking_url = tracking_url or api_url2
 
     raw_phone, name = _customer_fields_from_order_detail(detail)
-    normalized = normalize_phone(raw_phone)
+    st = _store_settings_row(db, store.id)
+    region = default_region_for_store(store, st)
+    normalized = normalize_phone(raw_phone, region)
     is_invalid = raw_phone is not None and normalized is None
+
+    merged = dict(detail)
+    mapped = map_tiendanube_order_detail(merged)
+    if mapped is None and tracking:
+        mapped = "in_transit"
+    initial = mapped or ("pending_tracking" if not tracking else "in_transit")
 
     order = Order(
         store_id=store.id,
@@ -322,11 +365,15 @@ def _handle_order_fulfilled(
         invalid_phone=is_invalid,
         tracking_number=tracking,
         tracking_url=tracking_url,
-        current_status="ready_for_polling" if tracking else "pending_tracking",
+        current_status=initial,
+        platform_status_raw=_tn_platform_snapshot({}, detail, tracking),
+        last_status_source="webhook",
     )
     db.add(order)
     db.commit()
     db.refresh(order)
+    if mapped:
+        notification_engine.evaluate_and_notify(db, order)
     logger.info("TN order %s created on fulfilled event for store %s", order.id, store.id)
     return {
         "status": "received",

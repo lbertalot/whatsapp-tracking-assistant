@@ -1,39 +1,37 @@
 ---
-description: Reglas para el polling worker y notificaciones
+description: Reglas para el worker de reconciliación y notificaciones
 globs:
   - backend/app/workers/**/*.py
-  - backend/app/services/weraha*.py
+  - backend/app/services/tiendanube*.py
   - backend/app/services/whatsapp*.py
   - backend/app/services/notification*.py
 ---
 
 # Worker y notificaciones — Reglas
 
-## Polling Worker
+## Reconciliation worker (ecommerce)
 - Se ejecuta como proceso separado (worker dyno en Heroku)
 - El scheduler dispara la ejecución periódica
-- Solo procesa órdenes de tiendas con `onboarding_status = active`
-- Solo procesa órdenes con `tracking_number` presente
+- Solo procesa órdenes de tiendas con `onboarding_status = active` y `ecommerce_sync_enabled = True`
+- Requiere instalación Tiendanube activa con `access_token` (`order_source_type == tiendanube`)
 
 ## Flujo del worker
-1. Obtener órdenes elegibles (no entregadas, tienda activa)
-2. Consultar estado en Weraha por cada orden
-3. Mapear estado raw a estado interno (`in_transit`, `delivered`)
-4. Si hay cambio de estado:
-   - Actualizar `orders.current_status`
+1. Obtener órdenes elegibles (`pending_tracking`, `in_transit` — no entregadas, tienda activa)
+2. Para cada orden: `TiendanubeService.fetch_order` + merge con `map_tiendanube_order_detail`
+3. Si hay cambio de estado respecto al flujo de notificación:
+   - Actualizar `orders.current_status`, `platform_status_raw`, `last_status_source` (`sync`)
    - Verificar idempotencia
-   - Enviar notificación WhatsApp
+   - Enviar notificación WhatsApp vía `NotificationEngine`
    - Registrar intento en `notification_attempts`
    - Actualizar campos de visibilidad en `orders`
 
-## Weraha Adapter
-- Consulta estado logístico por tracking_number
-- Devuelve estado raw
-- Si falla: loggear error, no bloquear otras órdenes
+## Tiendanube order status
+- Deriva estado interno desde JSON de orden TN (`shipping_status`, envíos, agregados)
+- Si falla la API: loggear, no tumbar el worker completo para otras órdenes
 
-## State Mapper
-- Mapea estados raw de Weraha a estados internos
-- Solo soporta: `in_transit` y `delivered`
+## State mapper / plataforma
+- Mapea datos de TN a estados internos (`in_transit`, `delivered`)
+- Webhooks TN tienen prioridad; el worker cubre gaps de eventos
 
 ## WhatsApp Service
 - Usa Meta Cloud API

@@ -8,11 +8,11 @@ Este plan descompone el MVP del WhatsApp Tracking Assistant en **22+ milestones*
 
 - **Track Backend** (B01–B08): 8 milestones — fundación → notificaciones con idempotencia
 - **Track Frontend** (F01–F04): 4 milestones — login → panel vendible con trazabilidad
-- **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, Weraha real, WhatsApp Cloud API (**I04** base; **I06–I08** Meta: plantillas, webhook firmado, tokens por tienda), observabilidad (**I05**)
+- **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, **sincronización de estado desde ecommerce** (API TN + webhooks; **ADR-006**), WhatsApp Cloud API (**I04** base; **I06–I08** Meta: plantillas, webhook firmado, tokens por tienda), observabilidad (**I05**)
 - **Onboarding**: **ONB02** registro merchant (`POST /auth/register`, **ADR-004**) → **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`, **ADR-002**); el grafo refleja esa secuencia recomendada
 - **Post-MVP** (H01–H02): homologación Tiendanube App Store + homologación / App Review Meta (WhatsApp)
 - **DevOps** (**MS-CI01**): GitHub Actions (lint, tests, seguridad, Docker, release), Dependabot, pre-commit — ver `CONTRIBUTING.md`
-- **Piloto comercial** (**MS-P01–P05**): entorno, Tiendanube real, WhatsApp/Meta real, Weraha o decisión de tracking, cierre con DoD — detalle operativo en **`docs/PILOT_READINESS.md`**
+- **Piloto comercial** (**MS-P01–P05**): entorno, Tiendanube real, WhatsApp/Meta real, transiciones de estado desde datos TN, cierre con DoD — detalle operativo en **`docs/PILOT_READINESS.md`**
 
 **Metodología**: TDD estricto (Red → Green → Refactor) en cada milestone.
 
@@ -46,7 +46,7 @@ flowchart TD
     F02 --> ONB01
     I01 --> ONB01
     B03 --> ONB01
-    B06 --> I03[MS-I03<br>Weraha Real]
+    B06 --> I03[MS-I03<br>Ecommerce / TN sync]
     B07 --> I04[MS-I04<br>WhatsApp Real base]
     I04 --> I06[MS-I06<br>WA plantillas Meta]
     I06 --> I07[MS-I07<br>WA Webhook Meta]
@@ -67,7 +67,7 @@ flowchart TD
     I06 --> P03[MS-P03<br>WA piloto Meta]
     I07 --> P03
     I08 --> P03
-    I03 --> P04[MS-P04<br>Weraha / tracking]
+    I03 --> P04[MS-P04<br>Piloto TN / tracking]
     P01 --> P05[MS-P05<br>Cierre piloto DoD]
     P02 --> P05
     P03 --> P05
@@ -236,7 +236,7 @@ flowchart TD
 
 **Tests TDD requeridos**:
 
-- [x] Normalización — `tests/test_services/test_phone.py` (`TestNormalizePhone`, variantes Paraguay + inválidos)
+- [x] Normalización — `tests/test_services/test_phone.py` (`TestNormalizePhone`, variantes por región + inválidos)
 - [x] `test_webhook_creates_order` / `test_webhook_idempotent` / `test_webhook_normalizes_phone`
 - [x] `test_webhook_invalid_phone_marks_order`
 - [x] Seguridad: `test_webhook_invalid_signature`, `test_webhook_missing_signature`, `test_webhook_unknown_store`
@@ -283,28 +283,28 @@ flowchart TD
 
 ---
 
-### MS-B06: Worker & State Mapper (Mock Weraha)
+### MS-B06: Worker & State Mapper (ecommerce / Tiendanube)
 
 - **Track**: Backend
 - **Depende de**: MS-B02
-- **Objetivo**: Polling worker que consulta tracking, mapea estados y actualiza DB
+- **Objetivo**: Worker de reconciliación que consulta la API de Tiendanube, mapea estados y actualiza DB
 
-**Estado en repo**: **cerrado** (mock Weraha + tests HTTP reales en MS-I03).
+**Estado en repo**: **cerrado** — `tiendanube_order_status` + `workers/polling.py` (sin adaptador de courier en el núcleo; **ADR-006**).
 
 **Tasks**:
 
-- [x] `backend/app/services/weraha.py` — `WerahaAdapter.get_tracking_status`
-- [x] `backend/app/services/state_mapper.py`
-- [x] `backend/app/workers/polling.py` — elegibilidad RFC §12, `process_order`, notificación tras cambio de estado
-- [x] Criterios: store activa, `tracking_number`, `onboarding_status=active` (teléfono se valida en ingesta / envío de WA)
-- [x] Actualización `current_status`, `last_checked_at`, `last_status_change_at`
+- [x] `backend/app/services/tiendanube_order_status.py` — `map_tiendanube_order_detail`, `tracking_from_order_detail`
+- [x] `backend/app/services/state_mapper.py` (legacy / otros usos si aplica)
+- [x] `backend/app/workers/polling.py` — elegibilidad por tienda activa, `ecommerce_sync_enabled`, instalación TN, `process_order`, notificación tras cambio de estado
+- [x] Criterios: store activa, `onboarding_status=active`, órdenes en estados pollables (teléfono se valida en ingesta / envío de WA)
+- [x] Actualización `current_status`, `platform_status_raw`, `last_status_source`, `last_checked_at`, `last_status_change_at`
 - [x] Logging estándar (`logger.info` / `exception`)
 
 **Tests TDD requeridos**:
 
-- [x] `test_mock_returns_status` — `tests/test_services/test_weraha.py`
-- [x] `test_in_transit_variants` / `test_delivered_variants` / `test_unknown_returns_none` — `test_state_mapper.py`
-- [x] `test_worker_selects_eligible_orders` / `test_worker_updates_order_status` / `test_worker_skips_inactive_store` / `test_worker_skips_no_tracking` / `test_worker_updates_last_checked` — `test_worker.py`
+- [x] `tests/test_services/test_tiendanube_order_status.py`
+- [x] `test_in_transit_variants` / `test_delivered_variants` / `test_unknown_returns_none` — `test_state_mapper.py` (según alcance actual)
+- [x] `test_worker_selects_eligible_orders` / `test_worker_updates_order_status` / `test_worker_skips_inactive_store` / `test_worker_updates_last_checked` — `test_worker.py`
 
 **Test E2E del milestone**:
 
@@ -571,7 +571,7 @@ flowchart TD
 
 **Entregable deployable**: Sí — mismo stack que login existente.
 
-**Notas**: ver **ADR-004** en `docs/ADR.md`.
+**Notas**: ver **ADR-004** en `docs/SPEC.md` (Parte III).
 
 ---
 
@@ -685,41 +685,35 @@ flowchart TD
 
 ---
 
-### MS-I03: Weraha Real
+### MS-I03: Estado de envío desde ecommerce (Tiendanube)
 
 - **Track**: Integración
 - **Depende de**: MS-B06
-- **Objetivo**: Reemplazar mock de Weraha por integración real con API de Weraha
+- **Objetivo**: Obtener transiciones **in_transit** / **delivered** desde datos de la plataforma (webhooks + API TN), sin courier como fuente de verdad (**ADR-006**).
 
-**Estado en repo**: **parcial** — `WerahaAdapter` (`backend/app/services/weraha.py`) llama `GET {WERAHA_API_URL}/tracking/{id}` con `Authorization: Bearer {WERAHA_API_KEY}` y `timeout=10s` cuando `WERAHA_API_URL` es una URL HTTP(S) no vacía; si falta URL o es el placeholder `https://mock`, usa respuesta mock en proceso. Por tienda: `StoreSettings.weraha_account_reference` opcional → cabecera `X-Weraha-Account-Ref`; el worker solo consulta Weraha si `weraha_enabled=true` (activable en `/settings` y `PUT /api/settings`). Contrato público documentado del proveedor: pendiente de cerrar con Weraha.
+**Estado en repo**: **cerrado en MVP** — `map_tiendanube_order_detail` en `backend/app/services/tiendanube_order_status.py`; webhooks en `api/webhooks_tn.py`; reconciliación en `workers/polling.py` con `TiendanubeService.fetch_order`.
+
+**Nota histórica**: versiones anteriores del plan citaban **Weraha**; esa integración fue **retirada del núcleo del MVP**. Una reintegración opcional con operador logístico sería hito aparte y no bloquea el piloto actual.
 
 **Tasks**:
 
-- [ ] Investigar/documentar contrato oficial Weraha en producción (URL base, headers, shape JSON)
-- [x] Llamada HTTP real vía `httpx.get` cuando hay `WERAHA_API_URL` configurada
-- [x] Autenticación por API key global (`WERAHA_API_KEY` en `Settings`)
-- [x] `weraha_account_reference` → cabecera `X-Weraha-Account-Ref` en `WerahaAdapter` (contrato Weraha real puede requerir otro mecanismo — MS-I03)
-- [x] `weraha_enabled` + referencia editables en panel (`/settings`) y `PUT /api/settings` (coherente con worker)
-- [x] Mapeo raw → interno en `state_mapper` (variantes EN_CAMINO / ENTREGADO / inglés — ver tests)
-- [x] Manejo básico de errores: excepciones `httpx` → dict con `error` (sin tumbar el worker)
-- [ ] Rate limiting explícito según límites Weraha
-- [ ] Validación end-to-end contra API de staging/productiva Weraha
+- [x] Mapeo JSON TN → estado interno (`shipping_status`, fulfillments, agregados)
+- [x] Webhook TN: transición + auditoría `last_status_source=webhook` donde aplica
+- [x] Worker: `last_status_source=sync`, manejo de errores HTTP sin tumbar el proceso completo
+- [ ] Ampliar cobertura de eventos / frecuencia de polling según feedback de pilotos (producto)
 
-**Tests TDD requeridos** (`tests/test_integrations/test_weraha_real.py`):
+**Tests TDD requeridos**:
 
-- [x] `test_real_success` — mock `httpx.get` → JSON parseado
-- [x] `test_real_not_found` — 404 / HTTPStatusError → resultado con error
-- [x] `test_real_timeout` — `TimeoutException` → error capturado
-- [x] `test_real_auth_error` — 401 → error capturado
-- [x] `test_state_mapper_with_real_states` — variantes de estado → `in_transit` / `delivered`
+- [x] `tests/test_services/test_tiendanube_order_status.py`
+- [x] Integración webhooks / worker — ver `tests/test_integrations/test_tiendanube_webhooks.py`, `tests/test_services/test_worker.py`
 
 **Test E2E del milestone**:
 
-- [ ] Worker + API Weraha real (sin mock) en entorno controlado — pendiente
+- [ ] Piloto manual: orden real TN → transiciones reflejadas solo desde datos de plataforma
 
-**Criterio de completitud**: tracking real de Weraha funciona end-to-end
+**Criterio de completitud**: transiciones predecibles desde Tiendanube para el piloto (sin dependencia de API de courier en el core)
 
-**Entregable deployable**: Sí — worker consultando Weraha real en Heroku
+**Entregable deployable**: Sí — worker + webhooks alineados a TN
 
 ---
 
@@ -843,7 +837,7 @@ flowchart TD
 **Tasks — Seguridad**:
 
 - [x] `GET /api/settings` no expone token; solo `whatsapp_token_configured`
-- [ ] Checklist de cumplimiento: categoría UTILITY, opt-in del comprador al usar su teléfono (enlace a políticas en PRD)
+- [ ] Checklist de cumplimiento: categoría UTILITY, opt-in del comprador al usar su teléfono (enlace a políticas en `docs/SPEC.md` Parte I)
 
 **Tests TDD requeridos**:
 
@@ -1005,22 +999,21 @@ flowchart TD
 
 ---
 
-### MS-P04: Weraha o fuente de estado de envío acordada
+### MS-P04: Fuente de estado de envío (ecommerce / TN)
 
 - **Track**: Piloto / logística
-- **Depende de**: MS-I03 (parcial en código), MS-B06, MS-P02
-- **Objetivo**: El worker obtiene transiciones **in_transit** / **delivered** de forma predecible para el piloto.
+- **Depende de**: MS-I03, MS-B06, MS-P02
+- **Objetivo**: Webhooks + worker obtienen transiciones **in_transit** / **delivered** de forma predecible para el piloto, desde **Tiendanube**.
 
 **Tasks**:
 
-- [x] Si se usa Weraha: activar **`weraha_enabled`** en `/settings` (por defecto `false` tras registro) y revisar referencia opcional
-- [ ] **Opción A**: `WERAHA_API_URL` + `WERAHA_API_KEY` reales; validar que la respuesta JSON mapee con `state_mapper` / adapter (`GET {base}/tracking/{tracking_number}`)
-- [ ] **Opción B** (explícita): piloto sin Weraha — acordar que los estados vienen solo de TN / datos ya en orden y documentar limitaciones (puede no disparar segunda notificación sin transición)
-- [ ] Si se usa mock accidentalmente (URL vacía o `https://mock`), documentar que **no** representa logística real
+- [x] `ecommerce_sync_enabled` activo; instalación TN con token; `onboarding_status=active`
+- [ ] Validar en tienda piloto que `shipping_status` / envíos en TN disparan las transiciones esperadas (puede variar por merchant)
+- [ ] Documentar limitaciones si TN no publica tracking o estados de envío de forma consistente
 
-**Criterio de completitud**: al menos una transición de estado logística reflejada en `Order.current_status` antes del envío WA de “entregado”
+**Criterio de completitud**: al menos una transición de estado reflejada en `Order.current_status` antes del envío WA de “entregado”
 
-**Entregable deployable**: Parcial — depende del acuerdo con Weraha o TN
+**Entregable deployable**: Sí — piloto alineado a ADR-006
 
 ---
 
@@ -1111,7 +1104,7 @@ flowchart TD
 | MS-B03 | §4 (onboarding simple) | §8 (auth), §19 (seguridad) | Acceso al panel, Auth propia |
 | MS-B04 | §5 (integración fuente órdenes), §5 (normalización teléfonos) | §3.1 (ingesta), §3.2 (phone), §12 (elegibilidad) | Arquitectura general |
 | MS-B05 | §3 (visibilidad), §5 (panel mínimo) | §9 (panel visibilidad CRÍTICO) | UI vendible día 1, Lineamientos UI |
-| MS-B06 | §5 (integración Weraha), §6 (eventos) | §3.3 (polling), §3.4 (weraha), §3.5 (state mapper), §12 (elegibilidad) | Fase 2, Polling tradeoff |
+| MS-B06 | §5 (ecommerce), §6 (eventos) | §3.3 (worker), §3.5 (state mapper), §12 (elegibilidad) | Fase 2; **ADR-006** |
 | MS-B07 | §5 (notificaciones WhatsApp), §7 (mensajes) | §3.6 (notification engine), §3.7 (whatsapp), §7 (idempotencia) | Fase 3, Meta API tradeoff |
 | MS-B08 | §11 (riesgos) | §14 (retry), §7 (idempotencia), §18 (casos borde) | Trazabilidad e idempotencia |
 | MS-F01 | §4 (onboarding simple) | §8 (auth endpoints) | UI vendible, Acceso al panel |
@@ -1121,7 +1114,7 @@ flowchart TD
 | MS-I01 | §5 (integración fuente órdenes) | §3.1 (ingesta), §10 (flujo activación paso 1) | Arquitectura general |
 | MS-ONB01 | §4 (onboarding simple), §5 (fuente TN) | §8 (auth), §10 (activación), §3.1 (vinculación merchant) | Panel vendible, tenancy |
 | MS-I02 | §5 (integración fuente órdenes) | §3.1 (ingesta webhooks) | Arquitectura general |
-| MS-I03 | §5 (integración Weraha) | §3.4 (weraha adapter), §10 (paso 2) | Fase 2, Polling |
+| MS-I03 | §5 (ecommerce TN) | §3.3 (sync), §10 | Fase 2; **ADR-006** |
 | MS-I04 | §5 (notificaciones WhatsApp), §7 (mensajes) | §3.7 (whatsapp service), §11 (prerequisitos), §10 (pasos 3-4) | Fase 3, Meta API |
 | MS-I06 | §5 (notificaciones), §7 | §3.7 (whatsapp), §11 | Meta Cloud API plantillas; **ADR-005** |
 | MS-I07 | §5 (trazabilidad notificación) | §15, §17 | Webhooks Meta, firma App Secret; **ADR-005** |
@@ -1131,7 +1124,7 @@ flowchart TD
 | MS-P01 | §12 (piloto) | — | [`PILOT_READINESS.md`](PILOT_READINESS.md) — entorno |
 | MS-P02 | §5 (TN), §12 | §3.1 | TN real; ADR-002/003 |
 | MS-P03 | §5 (WA), §12 | §3.7, §11 | Meta piloto; **ADR-005**; `WHATSAPP_META.md` |
-| MS-P04 | §5 (Weraha) | §3.4 | Weraha real o decisión tracking |
+| MS-P04 | §5 (TN / piloto) | §3.3 | Tracking desde ecommerce |
 | MS-P05 | §12 (éxito producto) | — | DoD piloto; `PILOT_READINESS.md` §10 |
 | MS-H01 | §9 (Go-To-Market canal) | — | — |
 | MS-H02 | §5 (WhatsApp), cumplimiento | §11, §19 | Homologación Meta / App Review |
@@ -1140,14 +1133,14 @@ flowchart TD
 
 ## Definition of Done Global (MVP completo)
 
-Checklist final alineada con RFC §20 y PRD §12:
+Checklist final alineada con `docs/SPEC.md` (Partes I y II; secciones equivalentes a RFC §20 y PRD §12 del histórico):
 
 ### Éxito técnico
 
 > Checklist **respecto al código + tests** del repo. Criterios de **negocio** (p. ej. pilotos reales) siguen abajo.
 
 - [x] **Órdenes procesadas** — TN: `POST /webhooks/tiendanube` + fetch API (ADR-003); mock legacy `POST /webhooks/orders` — tests en `test_tiendanube_webhooks`, `test_webhook_orders`
-- [x] **Tracking funcionando** — worker + `WerahaAdapter` (mock o HTTP según `WERAHA_API_URL`) — `test_worker`, `test_weraha_real`
+- [x] **Tracking / estado funcionando** — worker + API TN + `tiendanube_order_status` — `test_worker`, `test_tiendanube_order_status`
 - [x] **Notificaciones enviadas** — motor + Graph con plantillas/params (MS-I06) — tests servicios/notificación/WhatsApp
 - [x] **Webhook WhatsApp** — `GET/POST /webhooks/whatsapp`, firma Meta — `test_whatsapp_webhook`
 - [x] **Credenciales WhatsApp por tienda** — `store_settings` + `resolve_for_store`; fallback global solo si `WHATSAPP_ALLOW_GLOBAL_FALLBACK=true` — en **prod multi-merchant** operativamente conviene `false` + tokens en panel (**MS-I08**)
@@ -1159,7 +1152,7 @@ Checklist final alineada con RFC §20 y PRD §12:
 
 ### Éxito de producto
 
-- [ ] **3 tiendas activas** — 3 merchants de Paraguay usando el sistema
+- [ ] **3 tiendas activas** — 3 merchants en la región objetivo (LatAm) usando el sistema
 - [ ] **Merchant percibe reducción de soporte** — validación manual en pilotos
 - [ ] **Visibilidad utilizada** — merchants acceden al panel regularmente
 - [ ] **Tiempo a primera notificación < 1 día** — métrica de producto; en código aún **no** hay endpoint dedicado (solo datos en orden / panel stats) — ver gap MS-I05
