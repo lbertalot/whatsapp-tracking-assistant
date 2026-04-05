@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Design System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="section-sm">
+        <h1>Modern Minimal Design System</h1>
+        <p class="text-secondary text-lg">A comprehensive design system for WhatsApp Tracking Assistant</p>
+    </div>
+
+    <!-- Colors Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Colors</h2>
+        
+        <h3 class="mb-4">Neutral Scale</h3>
+        <div class="grid grid-cols-6 gap-4 mb-8">
+            <div>
+                <div style="background: var(--neutral-50); height: 48px; border-radius: var(--radius-md); border: 1px solid var(--color-border);"></div>
+                <p class="text-xs text-muted mt-2">50</p>
+            </div>
+            <div>
+                <div style="background: var(--neutral-100); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">100</p>
+            </div>
+            <div>
+                <div style="background: var(--neutral-200); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">200</p>
+            </div>
+            <div>
+                <div style="background: var(--neutral-400); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">400</p>
+            </div>
+            <div>
+                <div style="background: var(--neutral-600); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">600</p>
+            </div>
+            <div>
+                <div style="background: var(--neutral-900); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">900</p>
+            </div>
+        </div>
+
+        <h3 class="mb-4">Accent (Teal)</h3>
+        <div class="grid grid-cols-6 gap-4 mb-8">
+            <div>
+                <div style="background: var(--accent-50); height: 48px; border-radius: var(--radius-md); border: 1px solid var(--color-border);"></div>
+                <p class="text-xs text-muted mt-2">50</p>
+            </div>
+            <div>
+                <div style="background: var(--accent-100); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">100</p>
+            </div>
+            <div>
+                <div style="background: var(--accent-300); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">300</p>
+            </div>
+            <div>
+                <div style="background: var(--accent-500); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">500</p>
+            </div>
+            <div>
+                <div style="background: var(--accent-700); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">700</p>
+            </div>
+            <div>
+                <div style="background: var(--accent-900); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">900</p>
+            </div>
+        </div>
+
+        <h3 class="mb-4">Semantic Colors</h3>
+        <div class="grid grid-cols-4 gap-4">
+            <div>
+                <div style="background: var(--success-500); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">Success</p>
+            </div>
+            <div>
+                <div style="background: var(--warning-500); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">Warning</p>
+            </div>
+            <div>
+                <div style="background: var(--error-500); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">Error</p>
+            </div>
+            <div>
+                <div style="background: var(--info-500); height: 48px; border-radius: var(--radius-md);"></div>
+                <p class="text-xs text-muted mt-2">Info</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Typography Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Typography</h2>
+        
+        <div class="card mb-6">
+            <div class="card-body">
+                <p style="font-size: var(--text-xs);" class="mb-2">Text XS (12px) - The quick brown fox jumps over the lazy dog</p>
+                <p style="font-size: var(--text-sm);" class="mb-2">Text SM (14px) - The quick brown fox jumps over the lazy dog</p>
+                <p style="font-size: var(--text-base);" class="mb-2">Text Base (16px) - The quick brown fox jumps over the lazy dog</p>
+                <p style="font-size: var(--text-lg);" class="mb-2">Text LG (18px) - The quick brown fox jumps</p>
+                <p style="font-size: var(--text-xl);" class="mb-2">Text XL (20px) - The quick brown fox</p>
+                <p style="font-size: var(--text-2xl);" class="mb-2">Text 2XL (24px) - The quick brown</p>
+                <p style="font-size: var(--text-3xl);">Text 3XL (30px) - The quick</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h1 class="mb-4">Heading 1</h1>
+                <h2 class="mb-4">Heading 2</h2>
+                <h3 class="mb-4">Heading 3</h3>
+                <h4 class="mb-4">Heading 4</h4>
+                <h5 class="mb-4">Heading 5</h5>
+                <h6>Heading 6</h6>
+            </div>
+        </div>
+    </section>
+
+    <!-- Buttons Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Buttons</h2>
+        
+        <div class="card mb-6">
+            <div class="card-header">
+                <h3>Button Variants</h3>
+            </div>
+            <div class="card-body">
+                <div class="flex gap-4 flex-wrap mb-6">
+                    <button class="btn btn-primary">Primary</button>
+                    <button class="btn btn-secondary">Secondary</button>
+                    <button class="btn btn-ghost">Ghost</button>
+                    <button class="btn btn-destructive">Destructive</button>
+                </div>
+                
+                <h4 class="mb-4">Sizes</h4>
+                <div class="flex gap-4 items-center flex-wrap mb-6">
+                    <button class="btn btn-primary btn-sm">Small</button>
+                    <button class="btn btn-primary">Default</button>
+                    <button class="btn btn-primary btn-lg">Large</button>
+                </div>
+
+                <h4 class="mb-4">States</h4>
+                <div class="flex gap-4 flex-wrap">
+                    <button class="btn btn-primary">Normal</button>
+                    <button class="btn btn-primary" disabled>Disabled</button>
+                    <button class="btn btn-secondary btn-full" style="max-width: 200px;">Full Width</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Form Elements Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Form Elements</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <div class="form-group">
+                            <label for="demo-input">Text Input</label>
+                            <input type="text" id="demo-input" placeholder="Enter text...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demo-email">Email Input</label>
+                            <input type="email" id="demo-email" placeholder="email@example.com">
+                            <p class="form-hint">We will never share your email.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="demo-password">Password Input</label>
+                            <input type="password" id="demo-password" placeholder="Your password">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="form-group">
+                            <label for="demo-select">Select</label>
+                            <select id="demo-select" class="form-select">
+                                <option value="">Choose an option</option>
+                                <option value="1">Option 1</option>
+                                <option value="2">Option 2</option>
+                                <option value="3">Option 3</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="demo-valid">Valid Input</label>
+                            <input type="text" id="demo-valid" class="is-valid" value="Valid value">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="demo-invalid">Invalid Input</label>
+                            <input type="text" id="demo-invalid" class="is-invalid" value="Invalid value">
+                            <p class="form-error">This field has an error.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h4 class="mb-4">Checkboxes and Radios</h4>
+                    <div class="flex gap-6 flex-wrap">
+                        <label class="form-checkbox">
+                            <input type="checkbox" checked> Checkbox checked
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="checkbox"> Checkbox unchecked
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="radio" name="demo-radio" checked> Radio selected
+                        </label>
+                        <label class="form-checkbox">
+                            <input type="radio" name="demo-radio"> Radio unselected
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cards Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Cards</h2>
+        
+        <div class="grid grid-cols-3 gap-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Card Header</h3>
+                </div>
+                <div class="card-body">
+                    <p>Card body content goes here. This is a basic card with header, body, and footer.</p>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-sm btn-primary">Action</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="mb-2">Simple Card</h3>
+                    <p class="text-muted">A card without header or footer, just body content.</p>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card-blue">
+                <div class="stat-value">1,234</div>
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-pct">+12.5%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Badges Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Badges</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="flex gap-4 flex-wrap items-center">
+                    <span class="badge badge-success">Success</span>
+                    <span class="badge badge-warning">Warning</span>
+                    <span class="badge badge-error">Error</span>
+                    <span class="badge badge-info">Info</span>
+                    <span class="badge badge-muted">Muted</span>
+                </div>
+                
+                <div class="mt-4">
+                    <h4 class="mb-2">Small Badges</h4>
+                    <div class="flex gap-4 flex-wrap items-center">
+                        <span class="badge badge-success badge-sm">SM Success</span>
+                        <span class="badge badge-warning badge-sm">SM Warning</span>
+                        <span class="badge badge-error badge-sm">SM Error</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Alerts Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Alerts</h2>
+        
+        <div class="alert alert-success">
+            <strong>Success!</strong> Your changes have been saved successfully.
+        </div>
+        
+        <div class="alert alert-warning">
+            <strong>Warning!</strong> Please review your settings before continuing.
+        </div>
+        
+        <div class="alert alert-error">
+            <strong>Error!</strong> Something went wrong. Please try again.
+        </div>
+        
+        <div class="alert alert-info">
+            <strong>Info:</strong> This is an informational message for the user.
+        </div>
+    </section>
+
+    <!-- Callouts Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Callouts</h2>
+        
+        <div class="callout callout-info">
+            <strong>Information</strong>
+            <p>This is an info callout with additional context and details.</p>
+        </div>
+        
+        <div class="callout callout-warning">
+            <strong>Warning</strong>
+            <p>This is a warning callout that requires attention.</p>
+        </div>
+        
+        <div class="callout callout-success">
+            <strong>Success</strong>
+            <p>This is a success callout indicating completion.</p>
+        </div>
+    </section>
+
+    <!-- Message Bubbles Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Message Bubbles</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="flex gap-4 flex-wrap">
+                    <div class="msg-bubble msg-bubble-sent">
+                        <span class="msg-meta">shipping_update_v1</span>
+                        <span class="msg-text">Tu pedido #12345 esta en camino!</span>
+                        <span class="msg-check">OK</span>
+                    </div>
+                    
+                    <div class="msg-bubble msg-bubble-pending">
+                        <span class="msg-meta">shipping_update_v1</span>
+                        <span class="msg-text">Mensaje pendiente de envio...</span>
+                    </div>
+                    
+                    <div class="msg-bubble msg-bubble-failed">
+                        <span class="msg-meta">Error</span>
+                        <span class="msg-text">No se pudo enviar el mensaje</span>
+                    </div>
+                    
+                    <div class="msg-bubble msg-bubble-warn">
+                        <span class="msg-meta">Tel. invalido</span>
+                        <span class="msg-text">Numero de telefono no valido</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Table Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Tables</h2>
+        
+        <div class="table-wrapper">
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th># Orden</th>
+                        <th>Cliente</th>
+                        <th>Estado</th>
+                        <th>Notificacion</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-id">ORD-001</td>
+                        <td class="col-customer">Juan Perez</td>
+                        <td><span class="badge badge-success">Entregado</span></td>
+                        <td><span class="badge badge-success">Enviado</span></td>
+                        <td class="col-date">2024-01-15 10:30</td>
+                    </tr>
+                    <tr>
+                        <td class="col-id">ORD-002</td>
+                        <td class="col-customer">Maria Garcia</td>
+                        <td><span class="badge badge-warning">En transito</span></td>
+                        <td><span class="badge badge-muted">Pendiente</span></td>
+                        <td class="col-date">2024-01-15 11:45</td>
+                    </tr>
+                    <tr class="row-error">
+                        <td class="col-id">ORD-003</td>
+                        <td class="col-customer">Carlos Lopez</td>
+                        <td><span class="badge badge-error">Fallo</span></td>
+                        <td><span class="badge badge-error">Fallido</span></td>
+                        <td class="col-date">2024-01-15 09:15</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Loading & Empty States -->
+    <section class="section-sm">
+        <h2 class="mb-6">Loading & Empty States</h2>
+        
+        <div class="grid grid-cols-2 gap-6">
+            <div class="card">
+                <div class="loading-state" style="padding: var(--space-8);">
+                    <div class="spinner"></div>
+                    <p>Cargando datos...</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="empty-state" style="padding: var(--space-8);">
+                    <div class="empty-icon">---</div>
+                    <h2>Sin resultados</h2>
+                    <p>No se encontraron datos que coincidan con tu busqueda.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Spacing Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Spacing Scale (8px baseline)</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div class="text-center">
+                        <div style="width: 4px; height: 4px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">4px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 8px; height: 8px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">8px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 12px; height: 12px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">12px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 16px; height: 16px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">16px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 24px; height: 24px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">24px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 32px; height: 32px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">32px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 48px; height: 48px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">48px</p>
+                    </div>
+                    <div class="text-center">
+                        <div style="width: 64px; height: 64px; background: var(--color-primary);"></div>
+                        <p class="text-xs text-muted mt-2">64px</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Shadows & Radius Section -->
+    <section class="section-sm">
+        <h2 class="mb-6">Shadows & Border Radius</h2>
+        
+        <div class="grid grid-cols-3 gap-6">
+            <div>
+                <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);" class="text-center">
+                    <p class="font-medium">Shadow SM</p>
+                    <p class="text-xs text-muted">Radius SM (4px)</p>
+                </div>
+            </div>
+            <div>
+                <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-md); box-shadow: var(--shadow-md);" class="text-center">
+                    <p class="font-medium">Shadow MD</p>
+                    <p class="text-xs text-muted">Radius MD (8px)</p>
+                </div>
+            </div>
+            <div>
+                <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);" class="text-center">
+                    <p class="font-medium">Shadow LG</p>
+                    <p class="text-xs text-muted">Radius LG (12px)</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dark Mode Toggle Demo -->
+    <section class="section-sm mb-8">
+        <h2 class="mb-6">Dark Mode</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <p class="mb-4">This design system supports dark mode via the <code>.dark</code> class on the HTML element. Click the theme toggle button in the header to switch between light and dark modes.</p>
+                <p class="text-muted">The theme preference is persisted in localStorage and respects the system preference by default.</p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
