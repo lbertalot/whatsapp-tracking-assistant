@@ -1,6 +1,7 @@
 """MS-ONB03: initial Tiendanube orders import."""
 
 import uuid
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import httpx
@@ -64,6 +65,7 @@ def test_create_order_from_detail_skips_duplicate(import_store):
 
     o2 = create_order_from_onboarding_detail(session, store, detail)
     assert o2 is None
+    session.commit()
 
 
 def test_run_initial_import_creates_orders_and_marks_completed(import_store):
@@ -100,9 +102,7 @@ def test_run_initial_import_creates_orders_and_marks_completed(import_store):
 def test_run_initial_import_skips_when_already_completed(import_store):
     session, store = import_store
     st = session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
-    from datetime import datetime
-
-    st.tn_initial_import_completed_at = datetime.utcnow()
+    st.tn_initial_import_completed_at = datetime.now(timezone.utc)
     session.commit()
 
     with patch(
