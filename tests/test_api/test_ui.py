@@ -16,6 +16,8 @@ class TestLoginPage:
         assert 'action="/auth/login"' in html
         assert 'type="email"' in html
         assert 'type="password"' in html
+        assert 'id="loginEmail"' in html
+        assert 'id="loginPassword"' in html
 
     def test_login_page_has_error_container(self, client):
         response = client.get("/login")
@@ -37,7 +39,8 @@ class TestRegisterPage:
         response = client.get("/register")
         html = response.text
         assert 'action="/auth/register"' in html
-        assert 'id="storeName"' in html
+        assert 'id="regStoreName"' in html
+        assert 'name="store_name"' in html
         assert 'type="email"' in html
         assert 'type="password"' in html
 

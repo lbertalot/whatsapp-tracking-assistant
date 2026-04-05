@@ -13,13 +13,13 @@
 
         <form id="loginForm" method="POST" action="/auth/login">
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" name="email" required
                        placeholder="tu@empresa.com" autocomplete="email">
             </div>
             <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required
+                <label for="loginPassword">Contraseña</label>
+                <input type="password" id="loginPassword" name="password" required
                        placeholder="Tu contraseña" autocomplete="current-password">
             </div>
             <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
@@ -34,8 +34,16 @@
 <script>
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const btn = document.getElementById('loginBtn');
-    const errEl = document.getElementById('loginError');
+    var form = e.currentTarget;
+    var btn = form.querySelector('#loginBtn');
+    var errEl = document.getElementById('loginError');
+    var emailIn = form.querySelector('[name="email"]');
+    var passIn = form.querySelector('[name="password"]');
+    if (!btn || !emailIn || !passIn) {
+        errEl.textContent = 'No se pudieron leer los campos del formulario.';
+        errEl.style.display = 'block';
+        return;
+    }
     btn.disabled = true;
     btn.textContent = 'Ingresando...';
     errEl.style.display = 'none';
@@ -45,8 +53,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: document.getElementById('email').value,
-                password: document.getElementById('password').value
+                email: emailIn.value,
+                password: passIn.value
             })
         });
 
