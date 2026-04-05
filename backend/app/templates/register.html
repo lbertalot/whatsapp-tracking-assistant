@@ -13,18 +13,18 @@
 
         <form id="registerForm" method="POST" action="/auth/register">
             <div class="form-group">
-                <label for="storeName">Nombre de tu tienda</label>
-                <input type="text" id="storeName" name="store_name" required minlength="2" maxlength="150"
+                <label for="regStoreName">Nombre de tu tienda</label>
+                <input type="text" id="regStoreName" name="store_name" required minlength="2" maxlength="150"
                        placeholder="Mi tienda" autocomplete="organization">
             </div>
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required
+                <label for="regEmail">Email</label>
+                <input type="email" id="regEmail" name="email" required
                        placeholder="tu@empresa.com" autocomplete="email">
             </div>
             <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required minlength="8"
+                <label for="regPassword">Contraseña</label>
+                <input type="password" id="regPassword" name="password" required minlength="8"
                        placeholder="Mínimo 8 caracteres" autocomplete="new-password">
             </div>
             <button type="submit" class="btn btn-primary btn-full" id="registerBtn">
@@ -58,8 +58,17 @@ function formatRegisterError(data) {
 
 document.getElementById('registerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const btn = document.getElementById('registerBtn');
-    const errEl = document.getElementById('registerError');
+    var form = e.currentTarget;
+    var btn = form.querySelector('#registerBtn');
+    var errEl = document.getElementById('registerError');
+    var storeIn = form.querySelector('[name="store_name"]');
+    var emailIn = form.querySelector('[name="email"]');
+    var passIn = form.querySelector('[name="password"]');
+    if (!btn || !storeIn || !emailIn || !passIn) {
+        errEl.textContent = 'No se pudieron leer los campos del formulario.';
+        errEl.style.display = 'block';
+        return;
+    }
     btn.disabled = true;
     btn.textContent = 'Creando cuenta...';
     errEl.style.display = 'none';
@@ -69,9 +78,9 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                store_name: document.getElementById('storeName').value.trim(),
-                email: document.getElementById('email').value.trim(),
-                password: document.getElementById('password').value
+                store_name: String(storeIn.value || '').trim(),
+                email: String(emailIn.value || '').trim(),
+                password: passIn.value
             })
         });
 
