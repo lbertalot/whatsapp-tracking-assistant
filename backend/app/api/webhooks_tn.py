@@ -16,7 +16,10 @@ from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.phone import default_region_for_store, normalize_phone
 from backend.app.services.tiendanube import TiendanubeService
-from backend.app.services.tiendanube_order_status import map_tiendanube_order_detail, tracking_from_order_detail
+from backend.app.services.tiendanube_order_status import (
+    map_tiendanube_order_detail,
+    tracking_from_order_detail,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -237,12 +240,14 @@ def _transition_order_from_tn(
     payload: dict,
     tracking: Optional[str],
 ) -> None:
-    """Set status from ecommerce payload; notify when status advances or templates are still pending."""
+    """Set status from ecommerce payload; notify on status advance or pending templates."""
     merged: dict[str, Any] = dict(detail) if detail else {}
     if tracking and not merged.get("fulfillment_orders"):
         merged = {
             **merged,
-            "shipping_status": merged.get("shipping_status") or payload.get("shipping_status") or "shipped",
+            "shipping_status": merged.get("shipping_status")
+            or payload.get("shipping_status")
+            or "shipped",
             "fulfillment_orders": [{"tracking_info": {"code": tracking}}],
         }
     mapped = map_tiendanube_order_detail(merged)
@@ -309,7 +314,9 @@ def _handle_order_fulfilled(
         if tracking:
             existing.tracking_number = tracking
             existing.tracking_url = tracking_url
-            _transition_order_from_tn(db, existing, detail=detail, payload=payload, tracking=tracking)
+            _transition_order_from_tn(
+                db, existing, detail=detail, payload=payload, tracking=tracking
+            )
             logger.info("Order %s tracking updated: %s", existing.id, tracking)
             return {
                 "status": "received",

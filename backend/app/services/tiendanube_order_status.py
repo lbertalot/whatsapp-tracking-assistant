@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple
 
 
 def tracking_from_order_detail(detail: dict) -> Tuple[Optional[str], Optional[str]]:
-    """Same rules as webhooks_tn._tracking_from_order_detail (single place for worker + webhooks)."""
+    """Same rules as webhooks TN tracking helper (single place for worker + webhooks)."""
     for key in ("fulfillments", "fulfillment_orders"):
         rows = detail.get(key)
         if not isinstance(rows, list):

@@ -47,7 +47,8 @@ class StoreSettings(Base):
 
     # Sync order/shipment state from the ecommerce platform API (Tiendanube first; see ADR-006).
     ecommerce_sync_enabled = Column(Boolean, default=True, nullable=False)
-    # ISO 3166-1 alpha-2 for phonenumbers.parse when the number has no country code (e.g. PY, AR, MX).
+    # ISO 3166-1 alpha-2 for phonenumbers.parse when the number has no country code
+    # (e.g. PY, AR, MX).
     default_phone_region = Column(String(5), nullable=True)
 
     whatsapp_enabled = Column(Boolean, default=False)
