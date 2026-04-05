@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     # Prod multi-merchant: False + token por tienda (MS-I08).
     WHATSAPP_ALLOW_GLOBAL_FALLBACK: bool = True
 
-    WERAHA_API_URL: str = ""
-    WERAHA_API_KEY: str = ""
-
     WEBHOOK_SECRET_TOKEN: str = "change-me"
 
     TIENDANUBE_APP_ID: str = ""

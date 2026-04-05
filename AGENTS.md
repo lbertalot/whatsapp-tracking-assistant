@@ -2,14 +2,12 @@
 
 ## Contexto del proyecto
 
-Este es un MVP de notificaciones post-compra por WhatsApp para merchants en Paraguay.
-El sistema recibe órdenes, consulta el estado logístico en Weraha, y envía notificaciones proactivas por WhatsApp cuando el estado cambia.
+Este es un MVP de notificaciones post-compra por WhatsApp para merchants en Latinoamérica.
+El sistema recibe órdenes desde la **tienda ecommerce** (MVP: Tiendanube), deriva el estado de envío desde **datos de la plataforma** (webhooks + API + worker de reconciliación) y envía notificaciones proactivas por WhatsApp cuando el estado cambia.
 
 Antes de escribir código, leé estos documentos:
 
-- `docs/PRD.md` — qué se construye y por qué
-- `docs/RFC.md` — cómo se construye técnicamente
-- `docs/ADR.md` — qué decisiones de arquitectura se tomaron y por qué
+- `docs/SPEC.md` — producto (Parte I), diseño técnico (Parte II) y decisiones ADR (Parte III)
 - `docs/MILESTONES.md` — plan por milestones, dependencias y criterios de aceptación
 
 ## Stack
@@ -20,7 +18,7 @@ Antes de escribir código, leé estos documentos:
 - **UI**: Jinja2 templates integrados al backend (NO Next.js, NO React)
 - **Infra**: Heroku (web + worker + scheduler + postgres) y/o Docker local (`docs/DOCKER.md`)
 - **WhatsApp**: Meta Cloud API
-- **Logística**: Weraha API
+- **Estado de envío**: ecommerce (Tiendanube en v1; roadmap otros conectores en `docs/ECOMMERCE_CONNECTORS_ROADMAP.md`)
 - **Teléfonos**: phonenumbers (E.164)
 - **Auth**: bcrypt + JWT simple
 - **Tests**: pytest
@@ -54,7 +52,7 @@ backend/
       notification.py      # NotificationAttempt
     services/
       __init__.py
-      weraha.py            # Weraha adapter
+      tiendanube_order_status.py  # Mapeo JSON TN → estado interno
       whatsapp.py          # WhatsApp Meta Cloud API service
       notification.py      # Notification engine con idempotencia
       phone.py             # Normalización de teléfonos
@@ -84,9 +82,7 @@ backend/
         app.js
 
 docs/
-  PRD.md
-  RFC.md
-  ADR.md
+  SPEC.md
   MILESTONES.md
   DOCKER.md
 
@@ -100,7 +96,7 @@ tests/
     test_health.py
   test_services/
     __init__.py
-    test_weraha.py
+    test_tiendanube_order_status.py
     test_whatsapp.py
     test_notification.py
     test_phone.py
@@ -128,10 +124,9 @@ AGENTS.md
 - Templates Jinja2: login + lista de órdenes
 - CSS mínimo vendible
 
-### Fase 2 — Worker + Weraha
-- Polling worker
-- Weraha adapter (primero mock, luego real)
-- State mapper
+### Fase 2 — Worker + ecommerce
+- Worker de reconciliación (Tiendanube API + mapeo de estados)
+- State mapper desde datos de plataforma
 - Actualización de estados en DB
 - Visibilidad de estados en panel
 
@@ -169,7 +164,7 @@ AGENTS.md
 
 #### Frontend (Jinja + JS)
 
-1. **`GET /onboarding`** (o `/onboarding/tiendanube`): copy claro, CTA “Conectar con Tiendanube” → redirect al authorize autenticado (token en header no aplica a redirect del browser: usar patrón **URL firmada de un solo uso**, **cookie http-only**, o **query token de corta vida** según decisión segura documentada en ADR).
+1. **`GET /onboarding`** (o `/onboarding/tiendanube`): copy claro, CTA “Conectar con Tiendanube” → redirect al authorize autenticado (token en header no aplica a redirect del browser: usar patrón **URL firmada de un solo uso**, **cookie http-only**, o **query token de corta vida** según decisión segura documentada en `docs/SPEC.md` Parte III).
 2. **Guard:** En `/panel` y `/settings`, si `needs_tiendanube` → redirigir a `/onboarding` (o modal bloqueante).
 3. **Post-callback:** Páginas o query `success` / `error` con mensajes accionables en español.
 
@@ -204,7 +199,7 @@ Login (fixture) → status → authorize (mock) → callback simulado → linked
 
 ### Código
 - Type hints en funciones públicas
-- Async para IO (DB, Weraha, WhatsApp)
+- Async para IO (DB, Tiendanube, WhatsApp)
 - Toda query filtra por store_id
 - Passwords hasheados con bcrypt
 - Config desde env vars via Pydantic Settings
@@ -217,7 +212,7 @@ Login (fixture) → status → authorize (mock) → callback simulado → linked
 
 ### Tests
 - pytest con fixtures de store, user, orders
-- Mock de APIs externas (Weraha, WhatsApp)
+- Mock de APIs externas (Tiendanube, WhatsApp)
 - No testear código de terceros
 
 ### Git

@@ -33,7 +33,7 @@ Lista operativa para validar el entorno real con **Meta Cloud API** y esta app. 
 ## 5. Infra y worker
 
 - [ ] `DATABASE_URL`, migraciones Alembic aplicadas (incl. columnas WhatsApp en `store_settings`).
-- [ ] Worker de polling en ejecución; `WERAHA_*` correcto para tracking.
+- [ ] Worker de reconciliación ecommerce en ejecución; Tiendanube OAuth + `ecommerce_sync_enabled` coherentes con el piloto.
 - [ ] **Observabilidad:** `GET /ready` para probes de DB; `GET /metrics` es **público** en el código actual (sin auth) — si exponés la app a internet, valorar firewall o deshabilitar la ruta hasta endurecer MS-I05.
 - [ ] Revisar logs ante **429**: el motor respeta `Retry-After` entre reintentos; errores de plantilla/config no deberían reintentarse en vano (heurística en código).
 
@@ -44,7 +44,7 @@ Lista operativa para validar el entorno real con **Meta Cloud API** y esta app. 
 
 ## 7. Cumplimiento (recordatorio)
 
-- [ ] Uso de número del cliente alineado a políticas de Tiendanube / opt-in y categoría UTILITY (detalle en PRD y tareas MS-I08 en `MILESTONES.md`).
+- [ ] Uso de número del cliente alineado a políticas de Tiendanube / opt-in y categoría UTILITY (detalle en `docs/SPEC.md` Parte I y tareas MS-I08 en `MILESTONES.md`).
 
 ---
 

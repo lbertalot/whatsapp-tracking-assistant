@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
     title="WhatsApp Tracking Assistant",
-    description="Post-purchase tracking notifications for Paraguay merchants",
+    description="Post-purchase tracking notifications for Latin American merchants",
     version="0.1.0",
 )
 

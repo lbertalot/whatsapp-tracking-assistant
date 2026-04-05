@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.main import app
+from backend.app.models.notification import NotificationAttempt
 from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreInstallation
 
@@ -49,6 +50,9 @@ def tn_webhook_env(engine):
     yield client, store
 
     app.dependency_overrides.clear()
+    session.query(NotificationAttempt).filter(NotificationAttempt.store_id == store.id).delete(
+        synchronize_session=False
+    )
     session.query(Order).filter(Order.store_id == store.id).delete()
     session.query(StoreInstallation).filter(StoreInstallation.store_id == store.id).delete()
     session.query(Store).filter(Store.id == store.id).delete()

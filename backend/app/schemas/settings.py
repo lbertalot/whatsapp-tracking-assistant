@@ -10,8 +10,8 @@ class StoreSettingsResponse(BaseModel):
 
     template_in_transit: Optional[str] = None
     template_delivered: Optional[str] = None
-    weraha_enabled: bool = False
-    weraha_account_reference: Optional[str] = None
+    ecommerce_sync_enabled: bool = True
+    default_phone_region: Optional[str] = None
     whatsapp_enabled: bool = False
     whatsapp_include_body_params: bool = True
     whatsapp_phone_number_id: Optional[str] = None
@@ -25,8 +25,10 @@ class StoreSettingsResponse(BaseModel):
         return cls(
             template_in_transit=s.template_in_transit,
             template_delivered=s.template_delivered,
-            weraha_enabled=bool(s.weraha_enabled),
-            weraha_account_reference=s.weraha_account_reference,
+            ecommerce_sync_enabled=bool(
+                getattr(s, "ecommerce_sync_enabled", True),
+            ),
+            default_phone_region=getattr(s, "default_phone_region", None),
             whatsapp_enabled=bool(s.whatsapp_enabled),
             whatsapp_include_body_params=(
                 True
@@ -44,8 +46,11 @@ class StoreSettingsResponse(BaseModel):
 class StoreSettingsUpdate(BaseModel):
     template_in_transit: Optional[str] = None
     template_delivered: Optional[str] = None
-    weraha_enabled: Optional[bool] = None
-    weraha_account_reference: Optional[str] = None
+    ecommerce_sync_enabled: Optional[bool] = None
+    default_phone_region: Optional[str] = Field(
+        default=None,
+        description="ISO 3166-1 alpha-2 para normalizar teléfonos sin prefijo (ej. PY, AR, MX)",
+    )
     whatsapp_enabled: Optional[bool] = None
     whatsapp_include_body_params: Optional[bool] = None
     whatsapp_phone_number_id: Optional[str] = None

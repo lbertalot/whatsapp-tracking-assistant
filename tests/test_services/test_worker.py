@@ -5,58 +5,71 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from backend.app.models.order import Order
-from backend.app.models.store import Store, StoreSettings
+from backend.app.models.store import Store, StoreInstallation, StoreSettings
 
 
 @pytest.fixture
 def worker_data(engine):
-    """Creates stores and orders for worker tests."""
+    """Creates stores, TN installation, and orders for worker sync tests."""
     Session = sessionmaker(bind=engine)
     session = Session()
 
     uid = uuid.uuid4().hex[:8]
+    tn_uid = str(9_000_000 + (int(uid[:6], 16) % 999_999))
+    tn_uid_inactive = str(8_000_000 + (int(uid[6:], 16) % 999_999))
 
-    active_store = Store(name="Active Store", external_store_id=f"tn_w_{uid}", status="active")
+    active_store = Store(name="Active Store", external_store_id=tn_uid, status="active")
     inactive_store = Store(
-        name="Inactive Store", external_store_id=f"tn_wi_{uid}", status="pending"
+        name="Inactive Store", external_store_id=tn_uid_inactive, status="pending"
     )
     session.add_all([active_store, inactive_store])
     session.flush()
 
+    session.add(
+        StoreInstallation(
+            store_id=active_store.id,
+            order_source_type="tiendanube",
+            access_token="fake-tn-token",
+            is_active=True,
+        )
+    )
+
     active_settings = StoreSettings(
         store_id=active_store.id,
         onboarding_status="active",
-        weraha_enabled=True,
+        ecommerce_sync_enabled=True,
     )
     session.add(active_settings)
     session.flush()
 
+    # Numeric TN order ids for int(external_id) in worker
+    oid_base = 7000000 + (int(uid[:6], 16) % 100000)
     eligible = Order(
         store_id=active_store.id,
-        external_id=f"elig_{uid}",
+        external_id=str(oid_base + 1),
         normalized_phone="+595981111111",
-        tracking_number="WRH-ELIG",
+        tracking_number="TRK-ELIG",
         current_status="pending_tracking",
     )
     no_tracking = Order(
         store_id=active_store.id,
-        external_id=f"notrack_{uid}",
+        external_id=str(oid_base + 2),
         normalized_phone="+595982222222",
         tracking_number=None,
         current_status="pending_tracking",
     )
     inactive_order = Order(
         store_id=inactive_store.id,
-        external_id=f"inact_{uid}",
+        external_id=str(oid_base + 3),
         normalized_phone="+595983333333",
-        tracking_number="WRH-INACT",
+        tracking_number="TRK-INACT",
         current_status="pending_tracking",
     )
     already_delivered = Order(
         store_id=active_store.id,
-        external_id=f"deliv_{uid}",
+        external_id=str(oid_base + 4),
         normalized_phone="+595984444444",
-        tracking_number="WRH-DELIV",
+        tracking_number="TRK-DELIV",
         current_status="delivered",
     )
     session.add_all([eligible, no_tracking, inactive_order, already_delivered])
@@ -80,6 +93,7 @@ def worker_data(engine):
     session.query(Order).filter(Order.store_id.in_([active_store.id, inactive_store.id])).delete(
         synchronize_session=False
     )
+    session.query(StoreInstallation).filter(StoreInstallation.store_id == active_store.id).delete()
     session.query(StoreSettings).filter(StoreSettings.store_id == active_store.id).delete()
     session.query(Store).filter(Store.id.in_([active_store.id, inactive_store.id])).delete(
         synchronize_session=False
@@ -104,20 +118,22 @@ def test_worker_selects_eligible_orders(worker_data):
     order_ids = [o.id for o in orders]
 
     assert eligible.id in order_ids
-    assert no_tracking.id not in order_ids
+    assert no_tracking.id in order_ids
     assert inactive_order.id not in order_ids
     assert already_delivered.id not in order_ids
 
 
-def test_worker_updates_order_status(worker_data):
-    session, active_store, _, eligible, *_ = worker_data
+def test_worker_updates_order_status_from_tn_detail(worker_data):
+    session, _, _, eligible, *_ = worker_data
     from backend.app.workers.polling import process_order
 
-    with patch("backend.app.workers.polling.weraha_adapter") as mock_weraha:
-        mock_weraha.get_tracking_status.return_value = {
-            "tracking_number": "WRH-ELIG",
-            "status": "EN_CAMINO",
-        }
+    detail = {
+        "id": int(eligible.external_id),
+        "shipping_status": "shipped",
+        "fulfillment_orders": [{"tracking_info": {"code": "TRK-ELIG", "url": "https://x.test"}}],
+    }
+
+    with patch("backend.app.workers.polling.tn_service.fetch_order", return_value=detail):
         process_order(session, eligible)
 
     session.refresh(eligible)
@@ -132,20 +148,12 @@ def test_worker_skips_inactive_store(worker_data):
     assert inactive_order.id not in [o.id for o in orders]
 
 
-def test_worker_skips_no_tracking(worker_data):
-    session, *_ = worker_data
-    from backend.app.workers.polling import get_eligible_orders
-
-    orders = get_eligible_orders(session)
-    assert all(o.tracking_number is not None for o in orders)
-
-
-def test_worker_excludes_store_when_weraha_disabled(worker_data):
+def test_worker_excludes_store_when_ecommerce_sync_disabled(worker_data):
     session, active_store, _, eligible, *_ = worker_data
     from backend.app.workers.polling import get_eligible_orders
 
     st = session.query(StoreSettings).filter_by(store_id=active_store.id).first()
-    st.weraha_enabled = False
+    st.ecommerce_sync_enabled = False
     session.commit()
 
     orders = get_eligible_orders(session)
@@ -156,15 +164,14 @@ def test_worker_updates_last_checked(worker_data):
     session, _, _, eligible, *_ = worker_data
     from backend.app.workers.polling import process_order
 
-    before = eligible.last_checked_at
+    detail = {
+        "id": int(eligible.external_id),
+        "shipping_status": "delivered",
+        "fulfillment_orders": [],
+    }
 
-    with patch("backend.app.workers.polling.weraha_adapter") as mock_weraha:
-        mock_weraha.get_tracking_status.return_value = {
-            "tracking_number": "WRH-ELIG",
-            "status": "EN_CAMINO",
-        }
+    with patch("backend.app.workers.polling.tn_service.fetch_order", return_value=detail):
         process_order(session, eligible)
 
     session.refresh(eligible)
     assert eligible.last_checked_at is not None
-    assert eligible.last_checked_at != before
