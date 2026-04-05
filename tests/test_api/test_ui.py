@@ -142,6 +142,9 @@ class TestSettingsPage:
         assert "btnReconnectTn" in response.text
         assert "Reconectar con Tiendanube" in response.text
         assert "tnReconnectBlock" in response.text
+        assert "btnReimportTnOrders" in response.text
+        assert "Reimportar" in response.text
+        assert "/api/integrations/tiendanube/reimport-orders" in response.text
 
     def test_settings_has_whatsapp_meta_section(self, client):
         response = client.get("/settings")

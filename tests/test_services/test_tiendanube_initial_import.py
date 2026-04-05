@@ -3,6 +3,7 @@
 import uuid
 from unittest.mock import patch
 
+import httpx
 import pytest
 from sqlalchemy.orm import sessionmaker
 
@@ -57,6 +58,9 @@ def test_create_order_from_detail_skips_duplicate(import_store):
     o1 = create_order_from_onboarding_detail(session, store, detail)
     assert o1 is not None
     assert o1.external_id == "9001"
+    assert o1.notified_in_transit is True
+    assert o1.notified_delivered is True
+    assert o1.last_status_source == "onboarding_import"
 
     o2 = create_order_from_onboarding_detail(session, store, detail)
     assert o2 is None
@@ -108,3 +112,19 @@ def test_run_initial_import_skips_when_already_completed(import_store):
         run_initial_orders_import_in_session(session, store.id)
 
     m.assert_not_called()
+
+
+def test_run_initial_import_fetch_orders_http_error_does_not_complete(import_store):
+    session, store = import_store
+    req = httpx.Request("GET", "https://api.tiendanube.com/v1/1/orders")
+    resp = httpx.Response(503, request=req)
+    exc = httpx.HTTPStatusError("srv err", request=req, response=resp)
+    with patch(
+        "backend.app.services.tiendanube_initial_import.tn_service.fetch_orders",
+        side_effect=exc,
+    ):
+        run_initial_orders_import_in_session(session, store.id)
+
+    session.expire_all()
+    st = session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    assert st.tn_initial_import_completed_at is None
