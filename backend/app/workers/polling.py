@@ -13,7 +13,10 @@ from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.tiendanube import TiendanubeService
-from backend.app.services.tiendanube_order_status import map_tiendanube_order_detail, tracking_from_order_detail
+from backend.app.services.tiendanube_order_status import (
+    map_tiendanube_order_detail,
+    tracking_from_order_detail,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +100,7 @@ def process_order(db: Session, order: Order) -> None:
         if mapped is None and order.tracking_number:
             mapped = "in_transit"
 
-        raw = (
-            str(detail.get("shipping_status") or detail.get("status") or "")[:100] or None
-        )
+        raw = str(detail.get("shipping_status") or detail.get("status") or "")[:100] or None
         order.platform_status_raw = raw
         order.last_status_source = "sync"
         order.last_checked_at = datetime.utcnow()
