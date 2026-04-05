@@ -136,6 +136,9 @@ def callback(
             )
             db.add(installation)
 
+        # Reconnect (MS-ONB03): allow initial bulk import to run again after a new OAuth success.
+        settings_row.tn_initial_import_completed_at = None
+
         db.commit()
 
         background_tasks.add_task(run_initial_orders_import_task, store.id)
@@ -182,6 +185,10 @@ def callback(
             is_active=True,
         )
         db.add(installation)
+
+    ss_legacy = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    if ss_legacy:
+        ss_legacy.tn_initial_import_completed_at = None
 
     db.commit()
 

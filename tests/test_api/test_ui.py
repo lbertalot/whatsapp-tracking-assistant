@@ -136,6 +136,13 @@ class TestSettingsPage:
         assert "ecommerceSyncCard" in response.text
         assert "btnSaveEcommerce" in response.text
 
+    def test_settings_has_tiendanube_reconnect_button(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        assert "btnReconnectTn" in response.text
+        assert "Reconectar con Tiendanube" in response.text
+        assert "tnReconnectBlock" in response.text
+
     def test_settings_has_whatsapp_meta_section(self, client):
         response = client.get("/settings")
         assert response.status_code == 200
