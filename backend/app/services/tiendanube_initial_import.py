@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -50,10 +50,13 @@ def _tn_installation(db: Session, store_id: int) -> Optional[StoreInstallation]:
     return None
 
 
-def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict) -> Optional[Order]:
+def create_order_from_onboarding_detail(
+    db: Session, store: Store, detail: dict, *, phone_region: Optional[str] = None
+) -> Optional[Order]:
     """
     Create a local Order from TN list/detail JSON. Skips duplicates.
     Does not call WhatsApp — historical rows are marked as already notified.
+    Does NOT commit — the caller is responsible for committing the batch.
     """
     oid = detail.get("id")
     if oid is None:
@@ -71,9 +74,7 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
         return None
 
     raw_phone, name = _customer_fields_from_order_detail(detail)
-    st = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
-    region = default_region_for_store(store, st)
-    normalized = normalize_phone(raw_phone, region)
+    normalized = normalize_phone(raw_phone, phone_region)
     is_invalid = raw_phone is not None and normalized is None
 
     track, tracking_url = tracking_from_order_detail(detail)
@@ -101,8 +102,6 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
         notified_delivered=True,
     )
     db.add(order)
-    db.commit()
-    db.refresh(order)
     return order
 
 
@@ -148,32 +147,39 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
         logger.exception("TN initial import: fetch_orders failed store_id=%s", store_id)
         return
 
+    settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
+    phone_region = default_region_for_store(store, settings_row)
+
     created = 0
+    skipped = 0
     for detail in rows:
         if not isinstance(detail, dict):
             continue
         try:
-            o = create_order_from_onboarding_detail(db, store, detail)
+            o = create_order_from_onboarding_detail(db, store, detail, phone_region=phone_region)
             if o is not None:
                 created += 1
+            else:
+                skipped += 1
         except Exception:
+            db.rollback()
             logger.exception(
                 "TN initial import: single order failed store_id=%s detail_id=%s",
                 store_id,
                 detail.get("id"),
             )
 
-    settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store_id).first()
     if not settings_row:
         settings_row = StoreSettings(store_id=store_id, onboarding_status="active")
         db.add(settings_row)
         db.flush()
-    settings_row.tn_initial_import_completed_at = datetime.utcnow()
+    settings_row.tn_initial_import_completed_at = datetime.now(UTC)
     db.commit()
     logger.info(
-        "TN initial import done store_id=%s created=%s payload=%s",
+        "TN initial import done store_id=%s created=%s skipped=%s payload=%s",
         store_id,
         created,
+        skipped,
         len(rows),
     )
 
