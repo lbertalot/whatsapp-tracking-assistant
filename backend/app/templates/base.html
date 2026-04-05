@@ -1,11 +1,26 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>{% block title %}WTA{% endblock %} — WhatsApp Tracking Assistant</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
     {% block head %}{% endblock %}
+    <script>
+        // Dark mode initialization (respects system preference and localStorage)
+        (function() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const storedTheme = localStorage.getItem('wta_theme');
+            if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
 </head>
 <body>
     <header class="app-header">
@@ -19,7 +34,11 @@
                 <a href="/panel" id="navOrders" style="display:none;">Ordenes</a>
                 <a href="/settings" id="navSettings" style="display:none;">Configuracion</a>
                 <span class="store-name" id="headerStoreLabel"></span>
-                <button class="btn btn-sm btn-outline" id="logoutBtn" style="display:none;">Cerrar sesion</button>
+                <button class="btn btn-sm btn-ghost btn-icon" id="themeToggle" title="Cambiar tema" aria-label="Cambiar tema">
+                    <span id="themeIconLight" style="display:none;">☀️</span>
+                    <span id="themeIconDark" style="display:none;">🌙</span>
+                </button>
+                <button class="btn btn-sm btn-secondary" id="logoutBtn" style="display:none;">Cerrar sesion</button>
             </nav>
         </div>
     </header>
@@ -40,6 +59,38 @@
 
     <script>
         const TOKEN_KEY = 'wta_token';
+        const THEME_KEY = 'wta_theme';
+
+        // Theme management
+        function getTheme() {
+            return localStorage.getItem(THEME_KEY) || 
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+
+        function setTheme(theme) {
+            localStorage.setItem(THEME_KEY, theme);
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeIcons();
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        }
+
+        function updateThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            var lightIcon = document.getElementById('themeIconLight');
+            var darkIcon = document.getElementById('themeIconDark');
+            if (lightIcon && darkIcon) {
+                lightIcon.style.display = isDark ? 'inline' : 'none';
+                darkIcon.style.display = isDark ? 'none' : 'inline';
+            }
+        }
 
         function getToken() {
             return localStorage.getItem(TOKEN_KEY);
@@ -67,6 +118,15 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize theme icons
+            updateThemeIcons();
+
+            // Theme toggle button
+            var themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+
             var logoutBtn = document.getElementById('logoutBtn');
             var navOrders = document.getElementById('navOrders');
             var navSettings = document.getElementById('navSettings');
