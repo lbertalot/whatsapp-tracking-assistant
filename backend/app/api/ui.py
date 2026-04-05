@@ -41,6 +41,12 @@ def help_connect_tiendanube(request: Request):
     return templates.TemplateResponse(request, "ayuda_conectar_tiendanube.html")
 
 
+@router.get("/privacidad", response_class=HTMLResponse)
+def privacy_policy_page(request: Request):
+    """Política de privacidad pública (HTTPS); requerida p. ej. por Meta App Review."""
+    return templates.TemplateResponse(request, "privacidad.html")
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request):
     return templates.TemplateResponse(request, "settings.html")

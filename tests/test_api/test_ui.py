@@ -219,6 +219,20 @@ class TestHelpTiendanubePage:
         assert "/register" in response.text
 
 
+class TestPrivacyPolicyPage:
+    def test_privacy_page_renders_public(self, client):
+        response = client.get("/privacidad")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_privacy_page_has_title_and_sections(self, client):
+        response = client.get("/privacidad")
+        assert "Política de privacidad" in response.text
+        assert "WhatsApp Tracking Assistant" in response.text
+        assert "Tiendanube" in response.text
+        assert "Meta Cloud API" in response.text
+
+
 class TestStaticAssets:
     def test_css_loads(self, client):
         response = client.get("/static/css/style.css")
