@@ -3,6 +3,23 @@ name = "whatsapp-tracking-assistant"
 version = "0.1.0"
 description = "Post-purchase tracking notifications for Latin American merchants"
 requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "alembic",
+    "psycopg2-binary",
+    "pydantic",
+    "pydantic-settings",
+    "email-validator>=2.0.0",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "bcrypt==4.3.0",
+    "phonenumbers",
+    "httpx",
+    "jinja2",
+    "python-multipart",
+]
 
 [project.scripts]
 app = "backend.app.main:app"
