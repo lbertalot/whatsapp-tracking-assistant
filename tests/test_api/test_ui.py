@@ -88,6 +88,8 @@ class TestPanelPage:
         response = client.get("/panel")
         assert "WTA" in response.text
         assert "brand" in response.text
+        assert "brand-logo" in response.text
+        assert "/static/img/wta-logo.png" in response.text
 
     def test_panel_footer_has_public_help_link(self, client):
         response = client.get("/panel")
@@ -238,3 +240,8 @@ class TestStaticAssets:
         response = client.get("/static/css/style.css")
         assert response.status_code == 200
         assert "text/css" in response.headers["content-type"]
+
+    def test_logo_png_loads(self, client):
+        response = client.get("/static/img/wta-logo.png")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("image/")
