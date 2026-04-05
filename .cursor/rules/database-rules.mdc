@@ -33,7 +33,7 @@ globs:
 - `delivered`
 - `notification_failed`
 - `invalid_phone`
-- (Legado migrado: `ready_for_polling` → `in_transit` en migración ADR-006)
+- (Legado migrado: `ready_for_polling` → `pending_tracking` en migración ADR-006)
 
 ## Estados de onboarding
 - `pending`

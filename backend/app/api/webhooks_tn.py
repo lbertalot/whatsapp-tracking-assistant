@@ -17,6 +17,7 @@ from backend.app.services.notification import NotificationEngine
 from backend.app.services.phone import default_region_for_store, normalize_phone
 from backend.app.services.tiendanube import TiendanubeService
 from backend.app.services.tiendanube_order_status import (
+    ecommerce_order_cancelled,
     map_tiendanube_order_detail,
     tracking_from_order_detail,
 )
@@ -250,8 +251,8 @@ def _transition_order_from_tn(
             or "shipped",
             "fulfillment_orders": [{"tracking_info": {"code": tracking}}],
         }
-    mapped = map_tiendanube_order_detail(merged)
-    if mapped is None and tracking:
+    mapped = map_tiendanube_order_detail(merged, order_id=order.id)
+    if mapped is None and tracking and not ecommerce_order_cancelled(merged):
         mapped = "in_transit"
     if mapped is None:
         db.commit()
@@ -264,8 +265,14 @@ def _transition_order_from_tn(
         order.current_status = mapped
         order.last_status_change_at = datetime.utcnow()
     db.commit()
-    db.refresh(order)
-    notification_engine.evaluate_and_notify(db, order)
+    try:
+        notification_engine.evaluate_and_notify(db, order)
+    except Exception:
+        logger.exception(
+            "evaluate_and_notify failed after TN transition (order_id=%s store_id=%s)",
+            order.id,
+            order.store_id,
+        )
 
 
 def _handle_order_fulfilled(
@@ -358,8 +365,8 @@ def _handle_order_fulfilled(
     is_invalid = raw_phone is not None and normalized is None
 
     merged = dict(detail)
-    mapped = map_tiendanube_order_detail(merged)
-    if mapped is None and tracking:
+    mapped = map_tiendanube_order_detail(merged, order_id=None)
+    if mapped is None and tracking and not ecommerce_order_cancelled(merged):
         mapped = "in_transit"
     initial = mapped or ("pending_tracking" if not tracking else "in_transit")
 

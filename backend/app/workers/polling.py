@@ -14,6 +14,7 @@ from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.notification import NotificationEngine
 from backend.app.services.tiendanube import TiendanubeService
 from backend.app.services.tiendanube_order_status import (
+    ecommerce_order_cancelled,
     map_tiendanube_order_detail,
     tracking_from_order_detail,
 )
@@ -67,16 +68,33 @@ def process_order(db: Session, order: Order) -> None:
     try:
         inst = _tn_installation(db, order.store_id)
         if not inst:
+            logger.debug(
+                "Order %s skipped: no active Tiendanube installation for store %s",
+                order.id,
+                order.store_id,
+            )
             return
 
         store = db.query(Store).filter(Store.id == order.store_id).first()
         if not store or not store.external_store_id:
+            logger.warning(
+                "Order %s skipped: store %s missing or without external_store_id",
+                order.id,
+                order.store_id,
+            )
             return
 
         try:
             tn_user_id = int(store.external_store_id)
             oid = int(str(order.external_id))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "Order %s skipped: invalid TN ids ext_store=%r ext_order=%r (%s)",
+                order.id,
+                getattr(store, "external_store_id", None),
+                order.external_id,
+                e,
+            )
             return
 
         token = inst.access_token.strip()
@@ -96,8 +114,8 @@ def process_order(db: Session, order: Order) -> None:
             order.tracking_number = track
 
         merged = dict(detail)
-        mapped = map_tiendanube_order_detail(merged)
-        if mapped is None and order.tracking_number:
+        mapped = map_tiendanube_order_detail(merged, order_id=order.id)
+        if mapped is None and order.tracking_number and not ecommerce_order_cancelled(merged):
             mapped = "in_transit"
 
         raw = str(detail.get("shipping_status") or detail.get("status") or "")[:100] or None
@@ -116,7 +134,6 @@ def process_order(db: Session, order: Order) -> None:
             logger.info("Order %s status sync: %s -> %s", order.id, old, mapped)
 
         db.commit()
-        db.refresh(order)
         notification_engine.evaluate_and_notify(db, order)
 
     except Exception:

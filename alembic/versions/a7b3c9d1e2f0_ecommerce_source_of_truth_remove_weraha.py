@@ -4,6 +4,11 @@ Revision ID: a7b3c9d1e2f0
 Revises: f6c2d8e1a0b9
 Create Date: 2026-04-05
 
+Legacy `ready_for_polling` is remapped to `pending_tracking` (not `in_transit`) so we do
+not imply a confirmed in-transit state from the platform without a later TN sync.
+
+WARNING: downgrade drops `ecommerce_sync_enabled` / audit columns — avoid downgrade in
+production without a DB backup and a clear rollback plan.
 """
 
 from typing import Sequence, Union
@@ -44,7 +49,7 @@ def upgrade() -> None:
     op.execute(
         """
         UPDATE orders
-        SET current_status = 'in_transit'
+        SET current_status = 'pending_tracking'
         WHERE current_status = 'ready_for_polling'
         """
     )
