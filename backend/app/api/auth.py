@@ -53,7 +53,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     store = Store(
         name=body.store_name.strip(),
         external_store_id=None,
-        country="Paraguay",
+        country="",
         status="active",
     )
     db.add(store)
@@ -61,7 +61,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
     settings = StoreSettings(
         store_id=store.id,
-        weraha_enabled=False,
+        ecommerce_sync_enabled=True,
         whatsapp_enabled=False,
         onboarding_status="pending",
     )

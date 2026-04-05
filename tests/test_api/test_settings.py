@@ -17,7 +17,7 @@ def _setup_env(db):
         onboarding_status="active",
         template_in_transit="shipping_in_transit_v1",
         template_delivered="shipping_delivered_v1",
-        weraha_enabled=True,
+        ecommerce_sync_enabled=True,
         whatsapp_enabled=True,
         whatsapp_phone_number_id="1234567890",
     )
@@ -51,7 +51,7 @@ def test_get_settings(client):
         data = resp.json()
         assert data["template_in_transit"] == "shipping_in_transit_v1"
         assert data["template_delivered"] == "shipping_delivered_v1"
-        assert data["weraha_enabled"] is True
+        assert data["ecommerce_sync_enabled"] is True
         assert data["whatsapp_enabled"] is True
         assert data["onboarding_status"] == "active"
         assert data["whatsapp_token_configured"] is False
@@ -115,26 +115,27 @@ def test_put_settings_requires_auth(client):
     assert resp.status_code == 401
 
 
-def test_put_weraha_enabled_and_reference(client):
+def test_put_ecommerce_sync_and_phone_region(client):
     db = TestingSession()
     try:
         _, _, token = _setup_env(db)
         resp = client.put(
             "/api/settings",
             headers={"Authorization": f"Bearer {token}"},
-            json={"weraha_enabled": False, "weraha_account_reference": "ref-xyz"},
+            json={"ecommerce_sync_enabled": False, "default_phone_region": "AR"},
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["weraha_enabled"] is False
-        assert data["weraha_account_reference"] == "ref-xyz"
+        assert data["ecommerce_sync_enabled"] is False
+        assert data["default_phone_region"] == "AR"
         resp2 = client.put(
             "/api/settings",
             headers={"Authorization": f"Bearer {token}"},
-            json={"weraha_enabled": True},
+            json={"ecommerce_sync_enabled": True, "default_phone_region": None},
         )
         assert resp2.status_code == 200
-        assert resp2.json()["weraha_enabled"] is True
+        assert resp2.json()["ecommerce_sync_enabled"] is True
+        assert resp2.json().get("default_phone_region") in (None, "")
     finally:
         db.rollback()
         db.close()

@@ -4,15 +4,13 @@ globs:
 alwaysApply: true
 ---
 
-# WhatsApp Post-Purchase Assistant — Paraguay
+# WhatsApp Post-Purchase Assistant — Latinoamérica
 
 ## Qué es este proyecto
-Sistema MVP que envía notificaciones automáticas por WhatsApp cuando el estado logístico de un envío cambia, reduciendo consultas WISMO para merchants en Paraguay.
+Sistema MVP que envía notificaciones automáticas por WhatsApp cuando el estado de envío de un pedido cambia (según datos de la **tienda ecommerce**), reduciendo consultas WISMO para merchants en Latinoamérica.
 
 ## Documentos fuente de verdad
-- `PRD.md` — producto, ICP, propuesta de valor, métricas, riesgos
-- `RFC.md` — diseño técnico, modelo de datos, endpoints, reglas operativas
-- `ADR.md` — decisiones de arquitectura, stack, topología, fases
+- `docs/SPEC.md` — especificación única: producto (PRD), diseño técnico (RFC) y ADRs
 
 Ante cualquier duda de alcance, comportamiento o diseño, consultá estos archivos primero.
 
@@ -22,7 +20,7 @@ Ante cualquier duda de alcance, comportamiento o diseño, consultá estos archiv
 - **Infraestructura**: Heroku (web dyno + worker dyno + scheduler + postgres)
 - **UI**: integrada al backend (Jinja2 templates + static assets), NO Next.js
 - **WhatsApp**: Meta Cloud API directa
-- **Logística**: Weraha API
+- **Estado de envío**: plataforma ecommerce (MVP: Tiendanube; roadmap otros conectores en `docs/ECOMMERCE_CONNECTORS_ROADMAP.md`)
 
 ## Principios de desarrollo
 - Simplicidad > features
@@ -36,8 +34,8 @@ Ante cualquier duda de alcance, comportamiento o diseño, consultá estos archiv
 ## Qué NO es este proyecto
 - NO es un CRM
 - NO es un chatbot
-- NO soporta múltiples couriers (solo Weraha)
-- NO soporta múltiples países (solo Paraguay)
+- NO es un integrador de courier como núcleo (la fuente de verdad es la ecommerce; ver ADR-006)
+- NO implementa todos los conectores ecommerce en el primer corte (solo Tiendanube completo en MVP)
 - NO tiene analytics avanzados
 
 ## Idioma

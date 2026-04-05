@@ -23,7 +23,7 @@ backend/
 ## Convenciones de código
 - Python 3.11+
 - Type hints obligatorios en funciones públicas
-- Async para endpoints y operaciones IO (Weraha, WhatsApp, DB)
+- Async para endpoints y operaciones IO (Tiendanube, WhatsApp, DB)
 - SQLAlchemy como ORM
 - Alembic para migraciones
 - Pydantic para validación de request/response
@@ -43,7 +43,7 @@ backend/
 ## Manejo de errores
 - Teléfono inválido: marcar `invalid_phone=True`, no enviar, registrar
 - Error WhatsApp: 1 retry automático, luego marcar como `failed`
-- Error Weraha: loggear, no bloquear el flujo de otras órdenes
+- Error API ecommerce / sync: loggear, no bloquear el flujo de otras órdenes
 
 ## Endpoints mínimos
 - `POST /auth/login`
@@ -57,4 +57,4 @@ backend/
 ## Tests
 - Usar pytest
 - Fixtures para store, user, orders de prueba
-- Mock de Weraha y WhatsApp API en tests
+- Mock de Tiendanube y WhatsApp API en tests

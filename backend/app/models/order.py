@@ -19,6 +19,10 @@ class Order(Base):
     tracking_url = Column(String(500), nullable=True)
 
     current_status = Column(String(50), nullable=True)
+    # Last raw status string from the ecommerce platform (e.g. Tiendanube shipping_status).
+    platform_status_raw = Column(String(100), nullable=True)
+    # webhook | sync — how current_status was last derived.
+    last_status_source = Column(String(20), nullable=True)
 
     notified_in_transit = Column(Boolean, default=False)
     notified_delivered = Column(Boolean, default=False)

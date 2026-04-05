@@ -118,7 +118,7 @@ class TestSettingsPage:
 
     def test_settings_has_system_info(self, client):
         response = client.get("/settings")
-        assert "infoWeraha" in response.text
+        assert "infoEcommerceSync" in response.text
         assert "infoWhatsapp" in response.text
 
     def test_settings_shows_whatsapp_pilot_hint(self, client):
@@ -127,11 +127,11 @@ class TestSettingsPage:
         assert "pilotHintWhatsappSettings" in response.text
         assert "Notificaciones WhatsApp habilitadas" in response.text
 
-    def test_settings_has_weraha_controls(self, client):
+    def test_settings_has_ecommerce_sync_controls(self, client):
         response = client.get("/settings")
         assert response.status_code == 200
-        assert "werahaSettingsCard" in response.text
-        assert "btnSaveWeraha" in response.text
+        assert "ecommerceSyncCard" in response.text
+        assert "btnSaveEcommerce" in response.text
 
     def test_settings_has_whatsapp_meta_section(self, client):
         response = client.get("/settings")

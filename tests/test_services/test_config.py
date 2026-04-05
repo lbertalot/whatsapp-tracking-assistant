@@ -5,6 +5,7 @@ def test_settings_from_env():
     os.environ["DATABASE_URL"] = "postgresql://test:test@localhost/testdb"
     os.environ["SECRET_KEY"] = "my-test-secret"
     os.environ["APP_ENV"] = "testing"
+    os.environ["LOG_LEVEL"] = "INFO"
 
     from backend.app.core.config import Settings
 

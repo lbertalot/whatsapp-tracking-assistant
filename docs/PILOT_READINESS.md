@@ -1,9 +1,10 @@
 # Preparación para piloto — Tiendanube + WhatsApp (tienda real)
 
-Documento de **estado técnico y operativo** para el siguiente paso del proyecto: **una tienda real** con integración end-to-end **Tiendanube** (OAuth, webhooks, órdenes, tracking) y **WhatsApp** (Meta Cloud API, plantillas, webhook de `statuses`, credenciales por tienda o fallback controlado).
+Documento de **estado técnico y operativo** para el siguiente paso del proyecto: **una tienda real** con integración end-to-end **Tiendanube** (OAuth, webhooks, órdenes, datos de envío en payload/API) y **WhatsApp** (Meta Cloud API, plantillas, webhook de `statuses`, credenciales por tienda o fallback controlado).
 
 - **Plan de hitos asociado**: `docs/MILESTONES.md` — **Track Piloto (MS-P01–MS-P05)**.
 - **Checklists operativos complementarios**: `docs/META_GO_LIVE_CHECKLIST.md`, `docs/WHATSAPP_META.md`.
+- **Fuente de verdad del estado de envío**: plataforma ecommerce (Tiendanube), vía webhooks + `fetch_order` + worker de reconciliación — **ADR-006**.
 
 La **fuente de verdad** es el código; este documento resume hallazgos alineados al repo y se actualiza cuando cambie el comportamiento implementado.
 
@@ -13,9 +14,9 @@ La **fuente de verdad** es el código; este documento resume hallazgos alineados
 
 **Estado global: *Parcial* — apto para un piloto *controlado* de una tienda real, no para producción multi-merchant “sin checklist”.**
 
-El código ya soporta el camino feliz: registro → OAuth Tiendanube con `state` → webhooks TN con HMAC y fetch de API → worker que consulta Weraha (HTTP real si `WERAHA_API_URL` es URL válida; si no, respuesta mock) → motor de notificaciones con Graph API → webhook Meta firmado → panel y `StoreSettings` (plantillas, `whatsapp_enabled`, tokens).
+El código ya soporta el camino feliz: registro → OAuth Tiendanube con `state` → webhooks TN con HMAC y fetch de API → **worker de reconciliación** que consulta la **API de Tiendanube** (`fetch_order`) y aplica `map_tiendanube_order_detail` → motor de notificaciones con Graph API → webhook Meta firmado → panel y `StoreSettings` (plantillas, `whatsapp_enabled`, tokens).
 
-Los **mayores riesgos del piloto** son **operativos y de configuración externa**: scopes y URLs de la **app en Tiendanube**, **contrato real de Weraha** frente a `WerahaAdapter` (`GET …/tracking/{id}`), **plantillas Meta** (nombre, idioma, variables vs `whatsapp_include_body_params`), y que **`whatsapp_enabled` se crea en `false`** al registrarse — hay que activarlo en `/settings` o vía `PUT /api/settings`. En **`APP_ENV=development`** sin credenciales WA, `WhatsAppService.resolve_for_store` usa **mock**: el entorno del piloto debe usar **`production`** (o credenciales reales + fallback) para envíos reales.
+Los **mayores riesgos del piloto** son **operativos y de configuración externa**: scopes y URLs de la **app en Tiendanube**, **cobertura de eventos** (no todas las tiendas publican tracking igual; puede hacer falta sondeo más frecuente o más webhooks), **plantillas Meta** (nombre, idioma, variables vs `whatsapp_include_body_params`), y que **`whatsapp_enabled` se crea en `false`** al registrarse — hay que activarlo en `/settings` o vía `PUT /api/settings`. En **`APP_ENV=development`** sin credenciales WA, `WhatsAppService.resolve_for_store` usa **mock**: el entorno del piloto debe usar **`production`** (o credenciales reales + fallback) para envíos reales.
 
 ---
 
@@ -27,12 +28,12 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 | Auth JWT | Sí | `api/auth.py`, `core/dependencies.py` | Bajo |
 | TN OAuth (panel + state) | Sí | `api/integrations.py`, `services/tiendanube.py` | **Bajo–Medio**: variable opcional `TIENDANUBE_OAUTH_SCOPE` en la URL; si vacía, igual que antes (scopes = app TN) |
 | Webhooks TN | Sí | `api/webhooks_tn.py` | **Medio**: token/scopes; respuestas 503/200 según ADR-003 |
-| Weraha | Parcial | `services/weraha.py`, `workers/polling.py` | **Alto** si API real ≠ contrato asumido (`GET …/tracking/{id}`); cabecera `X-Weraha-Account-Ref` si hay `weraha_account_reference` |
-| Worker | Sí | `workers/polling.py` | **Bajo**: solo procesa tiendas con `weraha_enabled=true`; pasa `weraha_account_reference` al adapter |
+| Ecommerce / TN sync | Sí | `services/tiendanube_order_status.py`, `workers/polling.py` | **Medio**: forma del JSON TN vs expectativas; sin tracking en TN no hay mágia |
+| Worker | Sí | `workers/polling.py` | **Bajo**: tiendas con `onboarding_status=active`, `ecommerce_sync_enabled=true`, instalación TN activa |
 | WhatsApp | Sí | `services/whatsapp.py`, `services/notification.py`, `api/webhooks_whatsapp.py` | **Medio–Alto**: plantillas, `whatsapp_enabled`, Meta |
 | Settings / panel stats | Sí | `api/settings.py` | Bajo |
 | Observabilidad | Parcial | `api/health.py` | **Medio** si URL pública: opcional `METRICS_API_KEY` + cabecera `X-Metrics-Key` para proteger `/metrics` |
-| Tests | Mocks | `tests/` (sin E2E contra TN/Meta/Weraha reales) | Alto para confianza *sin* prueba manual |
+| Tests | Mocks | `tests/` (sin E2E contra TN/Meta reales) | Alto para confianza *sin* prueba manual |
 
 ---
 
@@ -42,8 +43,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 - Onboarding TN con `state` acoplado al `Store` del usuario (**ADR-002**).
 - Webhooks TN con payload mínimo + `fetch_order` / agregados (**ADR-003**).
 - WhatsApp: credenciales por tienda + `WHATSAPP_ALLOW_GLOBAL_FALLBACK`, reintentos y códigos Graph conservadores; avisos de activación en onboarding/settings.
-- Weraha: referencia por tienda vía cabecera `X-Weraha-Account-Ref` cuando `weraha_account_reference` está definida.
-- Trazabilidad: `NotificationAttempt` + `provider_delivery_status` vía webhook Meta.
+- Trazabilidad: `NotificationAttempt` + `provider_delivery_status` vía webhook Meta; `platform_status_raw` y `last_status_source` en órdenes para auditoría.
 - Idempotencia: `store_id:order_id:event_type` en el motor de notificaciones.
 
 ---
@@ -52,7 +52,6 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 
 **Técnicos**
 
-- Weraha: URL/API key siguen siendo globales; contrato real del proveedor puede no coincidir con `GET …/tracking/{id}` (MS-I03).
 - OAuth TN: sin `TIENDANUBE_OAUTH_SCOPE` en env, la URL sigue sin `scope=` (depende de la app TN).
 - Tras registro: `whatsapp_enabled=False` — sin activar en panel, no hay envíos (avisos en onboarding/settings).
 - `development` + sin credenciales → envíos WA en mock.
@@ -61,7 +60,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 **Operativos / producto**
 
 - Meta: App Review, Live, allowlist, UTILITY — ver `META_GO_LIVE_CHECKLIST.md`.
-- Políticas TN / datos del comprador — revisar con negocio (LGPD base en webhooks).
+- Políticas TN / datos del comprador — revisar con negocio (LGPD Brasil y leyes locales; validar con asesor).
 
 **Documentación**
 
@@ -73,10 +72,10 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 
 | Tema | Notas |
 |------|--------|
-| ADR-002 / ONB01, ADR-003 webhooks TN, ADR-004 registro, ADR-005 WhatsApp | Coinciden con implementación actual. |
-| MS-I03, MS-I05 en `MILESTONES.md` | Reflejan parcialidad Weraha y observabilidad. |
+| ADR-002 / ONB01, ADR-003 webhooks TN, ADR-004 registro, ADR-005 WhatsApp, **ADR-006** ecommerce como fuente de verdad | Coinciden con implementación actual. |
+| MS-I03 en `MILESTONES.md` | Histórico: antes Weraha; hoy el hito equivalente es **sincronización TN / ecommerce** (ver sección MS-I03 actualizada). |
 | OAuth `scope` | Opcional vía `TIENDANUBE_OAUTH_SCOPE`; si vacío, permisos = app TN. |
-| `weraha_enabled` vs worker | Alineado: worker solo elige tiendas con `weraha_enabled=true`. |
+| `ecommerce_sync_enabled` vs worker | Alineado: worker solo elige tiendas con sync ecommerce activo e instalación TN. |
 
 ---
 
@@ -91,6 +90,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 - [ ] Probar `order/fulfilled` → `tracking_number` según payload o API con `aggregates`.
 - [ ] Verificar secreto usado para HMAC del webhook TN vs implementación (`TIENDANUBE_CLIENT_SECRET` en código).
 - [ ] Flujo merchant: registro → login → install-url → callback → `onboarding_status` **active** (requisito del worker: `StoreSettings.onboarding_status == "active"`).
+- [ ] `default_phone_region` en settings si los números vienen sin prefijo internacional (ISO alpha-2, p. ej. PY, AR, MX).
 
 ---
 
@@ -115,7 +115,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 | **P0** | Entorno: Postgres, migraciones, `SECRET_KEY`, `APP_BASE_URL`, web + worker. |
 | **P0** | TN: OAuth tienda real, webhooks, orden de prueba en DB. |
 | **P0** | WA: tokens + activar `whatsapp_enabled` + plantillas; prueba a número permitido. |
-| **P0** | Weraha: URL/API key reales **o** decisión explícita de tracking solo desde TN hasta validar Weraha. |
+| **P0** | Ecommerce: confirmar que webhooks + worker reflejan `in_transit` / `delivered` según datos TN (sin courier externo). |
 | **P1** | Webhook Meta en dominio final; revisar errores Graph. |
 | **P1** | En prod público: definir `METRICS_API_KEY` y llamar `/metrics` con `X-Metrics-Key`. |
 | **P2** | Copy onboarding, runbook tokens TN, plan App Review. |
@@ -124,7 +124,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 
 ## 9. Unknowns (decisión humana)
 
-- Contrato Weraha en producción (URL, JSON, estados).
+- Cobertura de eventos y tracking por tienda TN (variabilidad por merchant).
 - Scopes efectivos de cada instalación TN.
 - Política multi-merchant vs fallback global en el piloto.
 - Calendario App Review y modo prueba vs Live.
@@ -134,7 +134,7 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 
 ## 10. Definición de hecho del piloto (DoD)
 
-> **Un pedido real creado o pagado en la tienda Tiendanube vinculada genera una orden en WTA con tracking y teléfono válido; el worker refleja al menos una transición a *en tránsito* y otra a *entregado* (según Weraha o datos TN); por cada transición elegible se envía la plantilla WhatsApp correspondiente al cliente real; en el panel el merchant ve la orden, los intentos y, si el webhook Meta está configurado, el estado de entrega actualizado en `NotificationAttempt`.**
+> **Un pedido real creado o pagado en la tienda Tiendanube vinculada genera una orden en WTA con teléfono válido y estado derivado de datos TN; el webhook y/o el worker de reconciliación reflejan al menos una transición a *en tránsito* y otra a *entregado* según `map_tiendanube_order_detail`; por cada transición elegible se envía la plantilla WhatsApp correspondiente al cliente real; en el panel el merchant ve la orden, los intentos y, si el webhook Meta está configurado, el estado de entrega actualizado en `NotificationAttempt`.**
 
 ---
 
@@ -144,8 +144,8 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 |--------|---------|
 | **OAuth TN `scope`** | `TIENDANUBE_OAUTH_SCOPE` en `Settings` / env; `TiendanubeService.get_auth_url()` añade `scope=` si no está vacío. |
 | **Aviso WhatsApp** | Bloques informativos en `onboarding.html` y `settings.html` (activar notificaciones y credenciales). |
-| **Worker + Weraha** | Elegibilidad solo si `StoreSettings.weraha_enabled` es **true**; `WerahaAdapter` envía `X-Weraha-Account-Ref` si `weraha_account_reference` está definido (hook MS-I03). |
-| **Panel Weraha** | `PUT /api/settings` acepta `weraha_enabled` y `weraha_account_reference`; en `/settings` hay tarjeta para activar y guardar (evita quedar bloqueado tras el worker). |
+| **Worker + ecommerce** | Reconciliación vía API TN cuando `ecommerce_sync_enabled` y onboarding activo; sin adaptador de courier en el núcleo (**ADR-006**). |
+| **Panel** | Región telefónica por defecto (`default_phone_region`); sin toggles Weraha. |
 | **`/metrics`** | Si `METRICS_API_KEY` está definido, exige cabecera `X-Metrics-Key` idéntica (comparación en tiempo constante). |
 | **Webhook WA** | Test de regresión: POST sin firma con `META_APP_SECRET` configurado → 403. |
 
@@ -159,8 +159,8 @@ Los **mayores riesgos del piloto** son **operativos y de configuración externa*
 | `backend/app/api/integrations.py` | OAuth TN + `install-url` |
 | `backend/app/api/webhooks_tn.py` | Webhook TN |
 | `backend/app/services/tiendanube.py` | Cliente HTTP TN |
-| `backend/app/services/weraha.py` | Adapter Weraha |
-| `backend/app/workers/polling.py` | Worker |
+| `backend/app/services/tiendanube_order_status.py` | Mapeo JSON TN → estado interno |
+| `backend/app/workers/polling.py` | Worker de reconciliación TN |
 | `backend/app/services/notification.py` | Motor de notificaciones |
 | `backend/app/services/whatsapp.py` | Graph API + resolución por tienda |
 | `backend/app/api/webhooks_whatsapp.py` | Webhook Meta |
