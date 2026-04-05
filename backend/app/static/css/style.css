@@ -1740,6 +1740,33 @@ a:hover {
     background-color: rgb(120 53 15 / 0.2);
 }
 
+/* Public legal pages (privacy policy) */
+.legal-privacy .legal-privacy-header h1 {
+    margin-bottom: var(--space-3);
+}
+
+.legal-privacy .legal-privacy-meta {
+    margin-bottom: var(--space-4);
+}
+
+.legal-privacy .legal-disclaimer {
+    margin-top: var(--space-4);
+}
+
+.legal-privacy .legal-list {
+    margin: var(--space-3) 0;
+    padding-left: var(--space-6);
+}
+
+.legal-privacy .legal-list li {
+    margin-bottom: var(--space-3);
+}
+
+.legal-privacy .settings-card h2 {
+    margin-bottom: var(--space-3);
+    font-size: var(--text-lg);
+}
+
 /* Print Styles */
 @media print {
     .app-header,

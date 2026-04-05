@@ -101,7 +101,7 @@ tests/          # pytest
 | TN OAuth | `GET /integrations/tiendanube/install`, `GET /integrations/tiendanube/callback`; panel: `GET /api/integrations/tiendanube/install-url` (JWT) |
 | Onboarding API | `GET /api/onboarding/status` (JWT) |
 | Webhooks | `POST /webhooks/tiendanube` (HMAC TN), `POST /webhooks/orders` (firma app), `GET/POST /webhooks/whatsapp` (Meta) |
-| UI (HTML) | `/`, `/login`, `/register`, `/panel`, `/onboarding`, `/settings`, `/ayuda/conectar-tiendanube` |
+| UI (HTML) | `/`, `/login`, `/register`, `/panel`, `/onboarding`, `/settings`, `/ayuda/conectar-tiendanube`, `/privacidad` |
 
 ## Despliegue (Heroku)
 

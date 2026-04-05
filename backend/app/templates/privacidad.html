@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Política de privacidad{% endblock %}
+
+{% block content %}
+<article class="settings-container legal-privacy" lang="es">
+    <header class="settings-card legal-privacy-header">
+        <h1>Política de privacidad</h1>
+        <p class="text-muted text-sm legal-privacy-meta">
+            <strong>WhatsApp Tracking Assistant</strong> (en adelante, el «Servicio»).
+            <span class="legal-privacy-updated">Última actualización: 5 de abril de 2026.</span>
+        </p>
+        <div class="alert alert-info legal-disclaimer" role="note">
+            <strong>Aviso importante.</strong> Este texto describe de forma clara el tratamiento de datos
+            previsto para el Servicio y está pensado para comercios en Latinoamérica. No constituye asesoramiento
+            jurídico; conviene que un abogado lo adapte a su actividad, contratos y país (por ejemplo, normas de
+            protección de datos personales y comercio electrónico aplicables).
+        </div>
+    </header>
+
+    <section class="settings-card" aria-labelledby="sec-responsable">
+        <h2 id="sec-responsable">1. Responsable del tratamiento</h2>
+        <p>
+            El <strong>responsable del tratamiento</strong> de los datos personales es la persona física o jurídica
+            que opera y administra esta instancia del Servicio (por ejemplo, el proveedor que le otorgó acceso o su
+            propia organización si usted es quien lo despliega). Para ejercer derechos o consultas sobre esta política
+            en relación con <em>esta</em> instalación, utilice el canal de contacto que le haya indicado quien le
+            proporcionó la URL del panel o el soporte de su comercio.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-alcance">
+        <h2 id="sec-alcance">2. Alcance</h2>
+        <p>
+            El Servicio permite a comercios conectar una tienda de comercio electrónico (en el producto actual,
+            <strong>Tiendanube</strong>) y enviar <strong>notificaciones por WhatsApp</strong> (vía
+            <strong>Meta Cloud API</strong>) sobre el estado logístico de los pedidos, reduciendo consultas repetidas
+            de seguimiento. El tratamiento descrito aplica a datos del <strong>comercio</strong> (usuario del panel)
+            y, en la medida necesaria para la función del Servicio, datos de <strong>compradores</strong> (p. ej.
+            teléfono y nombre asociados al pedido).
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-datos">
+        <h2 id="sec-datos">3. Datos personales que pueden tratarse</h2>
+        <p>Según la configuración y el uso del Servicio, pueden tratarse, entre otros:</p>
+        <ul class="legal-list">
+            <li>
+                <strong>Cuenta del comercio:</strong> identificador de tienda, nombre comercial, correo electrónico,
+                contraseña (almacenada de forma <strong>hash</strong>, no en texto plano), y datos de sesión
+                necesarios para el acceso al panel (p. ej. token de autenticación en el navegador).
+            </li>
+            <li>
+                <strong>Integración Tiendanube:</strong> identificadores de la tienda en la plataforma, tokens u otras
+                credenciales de acceso a la API necesarias para sincronizar pedidos y estados, y metadatos de la
+                instalación según lo requiera la integración.
+            </li>
+            <li>
+                <strong>Pedidos:</strong> número de pedido u orden de referencia, estado logístico o de envío,
+                datos de contacto del comprador facilitados por la plataforma de tienda (p. ej.
+                <strong>teléfono</strong> y <strong>nombre</strong> cuando estén disponibles), datos de seguimiento
+                y campos técnicos necesarios para mostrar la información en el panel.
+            </li>
+            <li>
+                <strong>WhatsApp (Meta):</strong> identificadores técnicos del número de negocio, configuración de
+                plantillas de mensaje, intentos de notificación, identificadores de mensaje devueltos por Meta y
+                estados de entrega cuando la plataforma los informe.
+            </li>
+            <li>
+                <strong>Registros técnicos (logs):</strong> datos de depuración y seguridad, como marcas de tiempo,
+                identificadores de solicitud o mensajes de error, sin perjuicio de minimizar datos personales en dichos
+                registros conforme a buenas prácticas.
+            </li>
+        </ul>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-fines">
+        <h2 id="sec-fines">4. Finalidades</h2>
+        <p>Los datos se tratan para:</p>
+        <ul class="legal-list">
+            <li>crear y mantener la cuenta del comercio y el acceso al panel;</li>
+            <li>conectar y sincronizar la tienda con la plataforma de comercio electrónico;</li>
+            <li>obtener y mostrar el estado de los pedidos y preparar el envío de notificaciones acordes a la configuración;</li>
+            <li>enviar mensajes por WhatsApp según las plantillas y políticas aceptadas en Meta y la configuración del comercio;</li>
+            <li>registrar intentos de notificación y trazabilidad frente al comercio;</li>
+            <li>mantener la seguridad, integridad y disponibilidad del Servicio, y cumplir obligaciones legales aplicables.</li>
+        </ul>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-base">
+        <h2 id="sec-base">5. Bases jurídicas (referencia general)</h2>
+        <p>
+            Según la legislación aplicable en su jurisdicción, el tratamiento puede apoyarse, entre otras, en la
+            ejecución de un contrato o condiciones de uso del Servicio, el interés legítimo en informar el estado del
+            pedido por un canal solicitado o aceptado por el comercio, el cumplimiento de obligaciones legales, y el
+            consentimiento del titular cuando corresponda (p. ej. configuración voluntaria de integraciones). La
+            base concreta debe valorarse caso por caso con asesoramiento local.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-destinatarios">
+        <h2 id="sec-destinatarios">6. Destinatarios y subencargados</h2>
+        <p>
+            Para prestar el Servicio pueden resultar necesarios proveedores de infraestructura (p. ej. alojamiento del
+            software y base de datos), <strong>Meta Platforms, Inc.</strong> y sus afiliadas en relación con WhatsApp
+            Cloud API, y <strong>Tiendanube</strong> (o la plataforma de tienda conectada) para la sincronización de
+            pedidos. Estos terceros tratan datos según sus propias políticas y contratos; se recomienda revisar la
+            documentación de Meta y de la plataforma de comercio electrónico.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-transferencias">
+        <h2 id="sec-transferencias">7. Transferencias internacionales</h2>
+        <p>
+            El uso de WhatsApp Cloud API y servicios en la nube puede implicar el tratamiento de datos en servidores
+            ubicados fuera de su país. En su caso, las transferencias deberán ajustarse a las exigencias de la normativa
+            aplicable (cláusulas contractuales, consentimiento u otros mecanismos previstos por la ley local).
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-conservacion">
+        <h2 id="sec-conservacion">8. Conservación</h2>
+        <p>
+            Los datos se conservan el tiempo necesario para las finalidades indicadas y según la política de retención
+            que defina el operador del Servicio (por ejemplo, mientras la cuenta esté activa y un plazo razonable
+            posterior para obligaciones legales o reclamaciones). Los datos pueden eliminarse o anonimizarse cuando ya
+            no sean necesarios.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-seguridad">
+        <h2 id="sec-seguridad">9. Medidas de seguridad</h2>
+        <p>
+            Se aplican medidas técnicas y organizativas razonables (p. ej. comunicación cifrada HTTPS, almacenamiento
+            de contraseñas con hash, acceso al panel por autenticación). Ningún sistema es invulnerable; el comercio
+            debe proteger sus credenciales y dispositivos.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-derechos">
+        <h2 id="sec-derechos">10. Derechos de los titulares</h2>
+        <p>
+            Los titulares de datos personales pueden tener derecho a solicitar acceso, rectificación, actualización,
+            supresión, limitación del tratamiento u oposición, según corresponda en su país. En Paraguay, por ejemplo,
+            la Ley N.º 1969 de «Habeas Data» reconoce diversos derechos respecto de datos de carácter personal.
+            Para ejercerlos, dirija su solicitud al responsable del tratamiento indicado en la sección 1.
+        </p>
+        <p>
+            Los compradores finales suelen ser clientes del comercio; muchas solicitudes sobre pedidos deberán canalizarse
+            a través del comercio que actúa como titular de la relación de venta.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-menores">
+        <h2 id="sec-menores">11. Menores de edad</h2>
+        <p>
+            El Servicio está dirigido a comercios y no está pensado para tratar datos de menores de forma principal.
+            Si tiene conocimiento de datos de menores sin base jurídica adecuada, contacte al responsable para su
+            gestión.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-cookies">
+        <h2 id="sec-cookies">12. Cookies y almacenamiento local</h2>
+        <p>
+            El panel puede utilizar almacenamiento local del navegador (p. ej. <code>localStorage</code>) para mantener
+            la sesión o preferencias de interfaz. No se describe aquí el uso de cookies de terceros para publicidad;
+            si en el futuro se incorporan, se actualizará esta política.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-cambios">
+        <h2 id="sec-cambios">13. Cambios</h2>
+        <p>
+            El operador del Servicio puede modificar esta política. La fecha de «Última actualización» reflejará el
+            cambio relevante. El uso continuado del Servicio tras la publicación puede implicar la aceptación de la
+            versión vigente, sin perjuicio de lo que exija la ley aplicable.
+        </p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sec-contacto">
+        <h2 id="sec-contacto">14. Contacto</h2>
+        <p>
+            Para consultas sobre privacidad en el marco de esta instancia, utilice el canal que le haya facilitado
+            quien administra el Servicio para su organización. Si usted es el operador y despliega esta aplicación,
+            puede reemplazar este párrafo por un correo electrónico o formulario de contacto oficial.
+        </p>
+        <p class="text-sm text-muted">
+            <a href="/login">Volver al inicio de sesión</a>
+            <span class="separator">·</span>
+            <a href="/ayuda/conectar-tiendanube">Ayuda: Tiendanube</a>
+        </p>
+    </section>
+</article>
+{% endblock %}
