@@ -370,7 +370,7 @@
             btn.disabled = true;
             fetch('/api/integrations/tiendanube/install-url', { headers: authHeaders() })
                 .then(function(r) {
-                    if (r.status === 401) { clearToken(); window.location.href = '/login'; return; }
+                    if (r.status === 401) { btn.disabled = false; clearToken(); window.location.href = '/login'; return; }
                     if (r.status === 503) {
                         return r.json().then(function(body) {
                             var d = body && body.detail;

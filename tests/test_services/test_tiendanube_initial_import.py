@@ -55,6 +55,7 @@ def test_create_order_from_detail_skips_duplicate(import_store):
     o1 = create_order_from_onboarding_detail(session, store, detail)
     assert o1 is not None
     assert o1.external_id == "9001"
+    session.commit()
 
     o2 = create_order_from_onboarding_detail(session, store, detail)
     assert o2 is None
