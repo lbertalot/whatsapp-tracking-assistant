@@ -1,6 +1,10 @@
 /* ============================================================================
    MODERN MINIMAL DESIGN SYSTEM
    WhatsApp Tracking Assistant
+
+   Browser support: evergreen (Chrome, Firefox, Safari, Edge last 2 majors).
+   Not supported: IE11 (CSS variables, Grid, :focus-visible). For stricter WCAG
+   contrast checks, audit tokens against foreground/background pairs in both themes.
    ============================================================================ */
 
 /* ----------------------------------------------------------------------------
