@@ -18,7 +18,7 @@
                 <a href="/onboarding" id="navOnboarding" style="display:none;">Conectar tienda</a>
                 <a href="/panel" id="navOrders" style="display:none;">Ordenes</a>
                 <a href="/settings" id="navSettings" style="display:none;">Configuracion</a>
-                <span class="store-name" id="storeName"></span>
+                <span class="store-name" id="headerStoreLabel"></span>
                 <button class="btn btn-sm btn-outline" id="logoutBtn" style="display:none;">Cerrar sesion</button>
             </nav>
         </div>
@@ -100,7 +100,7 @@
                 fetch('/me', { headers: authHeaders() })
                     .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
                     .then(function(data) {
-                        var el = document.getElementById('storeName');
+                        var el = document.getElementById('headerStoreLabel');
                         if (el) {
                             var line = data.store_name || data.email;
                             if (data.tiendanube_user_id) {
