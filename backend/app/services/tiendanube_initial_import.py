@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -41,10 +41,18 @@ def _tn_installation(db: Session, store_id: int) -> Optional[StoreInstallation]:
     return None
 
 
-def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict) -> Optional[Order]:
+def create_order_from_onboarding_detail(
+    db: Session,
+    store: Store,
+    detail: dict,
+    *,
+    phone_region: Optional[str] = None,
+) -> Optional[Order]:
     """
-    Create a local Order from TN list/detail JSON. Skips duplicates.
+    Stage a local Order from TN list/detail JSON. Skips duplicates.
+    Does not commit — caller batches one commit after the import loop.
     Does not call WhatsApp — historical rows are marked as already notified.
+    If ``phone_region`` is None, resolves region from StoreSettings once (for isolated tests).
     """
     oid = detail.get("id")
     if oid is None:
@@ -62,8 +70,11 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
         return None
 
     raw_phone, name = customer_fields_from_order_detail(detail)
-    st = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
-    region = default_region_for_store(store, st)
+    if phone_region is not None:
+        region = phone_region
+    else:
+        st = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+        region = default_region_for_store(store, st)
     normalized = normalize_phone(raw_phone, region)
     is_invalid = raw_phone is not None and normalized is None
 
@@ -95,8 +106,7 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
         notified_delivered=True,
     )
     db.add(order)
-    db.commit()
-    db.refresh(order)
+    db.flush()
     return order
 
 
@@ -166,14 +176,20 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
         logger.exception("TN initial import: fetch_orders failed store_id=%s", store_id)
         return
 
+    settings_for_region = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    phone_region = default_region_for_store(store, settings_for_region)
+
     created = 0
     for detail in rows:
         if not isinstance(detail, dict):
             continue
         try:
-            o = create_order_from_onboarding_detail(db, store, detail)
-            if o is not None:
-                created += 1
+            with db.begin_nested():
+                o = create_order_from_onboarding_detail(
+                    db, store, detail, phone_region=phone_region
+                )
+                if o is not None:
+                    created += 1
         except Exception:
             logger.exception(
                 "TN initial import: single order failed store_id=%s detail_id=%s",
@@ -186,7 +202,7 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
         settings_row = StoreSettings(store_id=store_id, onboarding_status="active")
         db.add(settings_row)
         db.flush()
-    settings_row.tn_initial_import_completed_at = datetime.utcnow()
+    settings_row.tn_initial_import_completed_at = datetime.now(timezone.utc)
     db.commit()
     logger.info(
         "TN initial import done store_id=%s created=%s payload=%s",
