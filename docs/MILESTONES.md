@@ -9,7 +9,7 @@ Este plan descompone el MVP del WhatsApp Tracking Assistant en **22+ milestones*
 - **Track Backend** (B01–B08): 8 milestones — fundación → notificaciones con idempotencia
 - **Track Frontend** (F01–F04): 4 milestones — login → panel vendible con trazabilidad
 - **Track Integración** (I01–I08): 8 milestones — Tiendanube OAuth/webhooks, **sincronización de estado desde ecommerce** (API TN + webhooks; **ADR-006**), WhatsApp Cloud API (**I04** base; **I06–I08** Meta: plantillas, webhook firmado, tokens por tienda), observabilidad (**I05**)
-- **Onboarding**: **ONB02** registro merchant (`POST /auth/register`, **ADR-004**) → **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`, **ADR-002**); el grafo refleja esa secuencia recomendada
+- **Onboarding**: **ONB02** registro merchant (`POST /auth/register`, **ADR-004**) → **ONB01** vinculación Tiendanube desde el panel (OAuth con `state`, **ADR-002**) → **ONB03** importación inicial de hasta 100 órdenes al vincular; el grafo refleja esa secuencia recomendada
 - **Post-MVP** (H01–H02): homologación Tiendanube App Store + homologación / App Review Meta (WhatsApp)
 - **DevOps** (**MS-CI01**): GitHub Actions (lint, tests, seguridad, Docker, release), Dependabot, pre-commit — ver `CONTRIBUTING.md`
 - **Piloto comercial** (**MS-P01–P05**): entorno, Tiendanube real, WhatsApp/Meta real, transiciones de estado desde datos TN, cierre con DoD — detalle operativo en **`docs/PILOT_READINESS.md`**
@@ -43,6 +43,7 @@ flowchart TD
     F01 --> ONB02[MS-ONB02<br>Registro merchant]
     B03 --> ONB02
     ONB02 --> ONB01[MS-ONB01<br>Onboarding TN panel]
+    ONB01 --> ONB03[MS-ONB03<br>Import inicial órdenes]
     F02 --> ONB01
     I01 --> ONB01
     B03 --> ONB01
@@ -644,6 +645,39 @@ flowchart TD
 - URL de callback registrada en el portal de la app TN debe coincidir con `APP_BASE_URL/integrations/tiendanube/callback` (o ruta final acordada).
 - Alcance OAuth (`scope`) debe incluir los permisos necesarios para órdenes y webhooks según RFC/PRD (el ejemplo real mostró `write_products`; validar si hace falta `read_orders` / scopes adicionales para MS-I02).
 - Seed Docker: `SEED_TN_LINK_MODE=oauth_ready` (default) deja `external_store_id` vacío hasta OAuth → evita `store_conflict` con tiendas TN reales; `demo` mantiene panel con token placeholder (`docs/DOCKER.md`, tests `test_seed_oauth_e2e.py`).
+
+---
+
+### MS-ONB03: Importación inicial de órdenes (onboarding Tiendanube)
+
+- **Track**: Onboarding + Integración
+- **Depende de**: MS-ONB01 (OAuth con `state` y token en `StoreInstallation`), MS-I02 (modelo de órdenes alineado a TN)
+- **Objetivo**: Tras vincular Tiendanube por primera vez, el panel **no debe quedar vacío** solo porque no hubo webhooks recientes: cargar en background **hasta las últimas 100 ventas** desde la API TN (`GET /{user_id}/orders` con `aggregates=fulfillment_orders`), creando filas locales idempotentes (`external_id` único por tienda). Las órdenes importadas **no disparan WhatsApp** (marcadas como ya notificadas / fuente `onboarding_import`) para no saturar al comercio con histórico.
+
+**Problema que resuelve**: Webhooks solo crean órdenes ante eventos nuevos; una tienda con historial no ve ventas pasadas en `/panel` hasta que ocurra un evento nuevo.
+
+**Flujo esperado**:
+
+1. Callback OAuth exitoso con `state` (MS-ONB01) → commit de tienda + instalación TN.
+2. Si `StoreSettings.tn_initial_import_completed_at` es **nulo** (primera vinculación), encolar tarea en background (mismo proceso web) que:
+   - Llama a `TiendanubeService.fetch_orders` (una página, `per_page` = min(100, `TN_ONBOARDING_IMPORT_LIMIT`)).
+   - Por cada orden en la respuesta, si no existe `Order` con ese `external_id`, persiste usando el mismo mapeo de estado/teléfono que el worker (sin `evaluate_and_notify`).
+   - Al terminar correctamente el listado, setea `tn_initial_import_completed_at` (UTC).
+3. Si el listado falla (red, 4xx/5xx), **no** marcar completado; el comercio puede reconectar OAuth o se puede añadir reintento manual en un milestone futuro.
+4. `GET /api/onboarding/status` expone si la importación ya corrió (`initial_orders_import_completed`) para mensajes opcionales en UI.
+
+**Tasks — Backend**:
+
+- [x] Migración: `store_settings.tn_initial_import_completed_at` (nullable `DateTime`).
+- [x] `TiendanubeService.fetch_orders(...)` — `GET /v1/{user_id}/orders` con `page`, `per_page`, `aggregates=fulfillment_orders`, timeout acorde al volumen.
+- [x] Servicio `run_initial_orders_import_task(store_id)` con sesión propia DB, idempotencia por `external_id`, flags de notificación para no enviar WA al histórico.
+- [x] `GET /integrations/tiendanube/callback` (rama con `state` y legacy sin `state`): tras éxito, `BackgroundTasks.add_task` (import idempotente si ya completó).
+- [x] Config `TN_ONBOARDING_IMPORT_LIMIT` (default 100, máx 200 alineado a API TN).
+- [x] Tests TDD: `tests/test_services/test_tiendanube_initial_import.py`, callback + `StoreSettings.tn_initial_import_completed_at`, `GET /api/onboarding/status` incluye `initial_orders_import_completed`.
+
+**Criterio de completitud**: Tras conectar TN, en unos segundos el panel de órdenes muestra hasta 100 ventas recientes sin depender de webhooks futuros.
+
+**Entregable deployable**: Sí — sin cambio de flujo OAuth para el usuario; solo carga extra en servidor tras primer link.
 
 ---
 

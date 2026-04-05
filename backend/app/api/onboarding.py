@@ -32,6 +32,7 @@ def onboarding_status(
             installation_active=False,
             onboarding_status="pending",
             store_name="",
+            initial_orders_import_completed=False,
             oauth_callback_url=oauth_cb,
             webhook_public_url=wh_url,
             tiendanube_app_configured=tn_ok,
@@ -50,6 +51,7 @@ def onboarding_status(
 
     settings_row = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
     onboarding_st = settings_row.onboarding_status if settings_row else "pending"
+    import_done = bool(settings_row and settings_row.tn_initial_import_completed_at is not None)
 
     return OnboardingStatusResponse(
         needs_tiendanube=not has_token,
@@ -57,6 +59,7 @@ def onboarding_status(
         installation_active=bool(inst and inst.is_active and (inst.access_token or "").strip()),
         onboarding_status=onboarding_st or "pending",
         store_name=store.name or "",
+        initial_orders_import_completed=import_done,
         oauth_callback_url=oauth_cb,
         webhook_public_url=wh_url,
         tiendanube_app_configured=tn_ok,

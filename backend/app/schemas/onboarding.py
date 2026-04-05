@@ -9,6 +9,8 @@ class OnboardingStatusResponse(BaseModel):
     installation_active: bool
     onboarding_status: str
     store_name: str
+    # MS-ONB03: True después de la primera importación bulk (o si no aplica aún).
+    initial_orders_import_completed: bool = False
     # URLs públicas que el comercio o soporte pueden verificar en el portal de socios TN
     oauth_callback_url: str
     webhook_public_url: str
@@ -17,3 +19,9 @@ class OnboardingStatusResponse(BaseModel):
 
 class TiendanubeInstallUrlResponse(BaseModel):
     url: str
+
+
+class TiendanubeReimportOrdersResponse(BaseModel):
+    """Respuesta tras programar MS-ONB03 en background (mismo token TN, sin OAuth)."""
+
+    status: str  # "scheduled"
