@@ -19,3 +19,9 @@ class OnboardingStatusResponse(BaseModel):
 
 class TiendanubeInstallUrlResponse(BaseModel):
     url: str
+
+
+class TiendanubeReimportOrdersResponse(BaseModel):
+    """Respuesta tras programar MS-ONB03 en background (mismo token TN, sin OAuth)."""
+
+    status: str  # "scheduled"

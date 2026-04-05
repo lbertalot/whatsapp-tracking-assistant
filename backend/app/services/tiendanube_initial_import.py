@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional
 
+import httpx
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
@@ -13,6 +14,7 @@ from backend.app.models.order import Order
 from backend.app.models.store import Store, StoreInstallation, StoreSettings
 from backend.app.services.phone import default_region_for_store, normalize_phone
 from backend.app.services.tiendanube import TiendanubeService
+from backend.app.services.tiendanube_order_detail import customer_fields_from_order_detail
 from backend.app.services.tiendanube_order_status import (
     ecommerce_order_cancelled,
     map_tiendanube_order_detail,
@@ -22,17 +24,6 @@ from backend.app.services.tiendanube_order_status import (
 logger = logging.getLogger(__name__)
 
 tn_service = TiendanubeService()
-
-
-def _customer_fields_from_order_detail(detail: dict) -> Tuple[Optional[str], Optional[str]]:
-    customer = detail.get("customer") if isinstance(detail.get("customer"), dict) else {}
-    raw_phone = detail.get("contact_phone") or customer.get("phone") or detail.get("billing_phone")
-    if raw_phone is not None:
-        raw_phone = str(raw_phone).strip() or None
-    name = detail.get("contact_name") or customer.get("name")
-    if name is not None:
-        name = str(name).strip() or None
-    return raw_phone, name
 
 
 def _tn_installation(db: Session, store_id: int) -> Optional[StoreInstallation]:
@@ -70,7 +61,7 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
     if existing:
         return None
 
-    raw_phone, name = _customer_fields_from_order_detail(detail)
+    raw_phone, name = customer_fields_from_order_detail(detail)
     st = db.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
     region = default_region_for_store(store, st)
     normalized = normalize_phone(raw_phone, region)
@@ -85,6 +76,9 @@ def create_order_from_onboarding_detail(db: Session, store: Store, detail: dict)
 
     platform_raw = str(detail.get("shipping_status") or detail.get("status") or "")[:100] or None
 
+    # MS-ONB03: historical bulk import must not blast WhatsApp for past orders. We mark both
+    # notification gates so the engine skips templates for this snapshot; live webhooks/worker
+    # still update status and can notify on genuine forward transitions for rows also tracked live.
     order = Order(
         store_id=store.id,
         external_id=order_ext_id,
@@ -135,6 +129,7 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
         logger.warning("TN initial import skipped: invalid TN user id store_id=%s", store_id)
         return
 
+    # Env TN_ONBOARDING_IMPORT_LIMIT (default 100); TN API allows up to 200 per page.
     limit = min(max(settings.TN_ONBOARDING_IMPORT_LIMIT, 1), 200)
     token = inst.access_token.strip()
 
@@ -146,6 +141,27 @@ def run_initial_orders_import_in_session(db: Session, store_id: int) -> None:
             per_page=limit,
             aggregates="fulfillment_orders",
         )
+    except httpx.TimeoutException:
+        logger.warning("TN initial import: fetch_orders timeout store_id=%s", store_id)
+        return
+    except httpx.HTTPStatusError as e:
+        code = e.response.status_code
+        if code == 429:
+            logger.warning("TN initial import: rate limited (429) store_id=%s", store_id)
+        else:
+            logger.error(
+                "TN initial import: HTTP %s from TN store_id=%s",
+                code,
+                store_id,
+            )
+        return
+    except httpx.RequestError as e:
+        logger.warning(
+            "TN initial import: request error store_id=%s: %s",
+            store_id,
+            e,
+        )
+        return
     except Exception:
         logger.exception("TN initial import: fetch_orders failed store_id=%s", store_id)
         return

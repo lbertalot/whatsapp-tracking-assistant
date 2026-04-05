@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -239,6 +240,51 @@ def test_tn_callback_unknown_store_redirect(onb_engine_client):
 
     assert r.status_code == 302
     assert "error=unknown_store" in r.headers["location"]
+
+
+def test_reimport_orders_requires_auth(client):
+    r = client.post("/api/integrations/tiendanube/reimport-orders")
+    assert r.status_code == 401
+
+
+def test_reimport_orders_400_without_tiendanube(onb_engine_client):
+    client, _session, store, user = onb_engine_client
+    token = create_access_token(user.id, store.id)
+    r = client.post(
+        "/api/integrations/tiendanube/reimport-orders",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 400
+    assert "tiendanube" in r.json()["detail"].lower()
+
+
+def test_reimport_orders_success_resets_timestamp_and_schedules_task(onb_engine_client):
+    client, session, store, user = onb_engine_client
+    store.external_store_id = "887766"
+    session.add(
+        StoreInstallation(
+            store_id=store.id,
+            order_source_type="tiendanube",
+            access_token="tok-reimport",
+            is_active=True,
+        )
+    )
+    ss = session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    ss.tn_initial_import_completed_at = datetime.utcnow()
+    session.commit()
+
+    token = create_access_token(user.id, store.id)
+    with patch("backend.app.api.integrations.run_initial_orders_import_task") as m:
+        r = client.post(
+            "/api/integrations/tiendanube/reimport-orders",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert r.status_code == 200
+    assert r.json()["status"] == "scheduled"
+    m.assert_called_once_with(store.id)
+    session.expire_all()
+    ss2 = session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+    assert ss2.tn_initial_import_completed_at is None
 
 
 def test_exchange_code_sends_json():
