@@ -189,3 +189,31 @@ class TestNotificationEngine:
         mock_wa.send_template_message.assert_called_once()
         _args, kwargs = mock_wa.send_template_message.call_args
         assert kwargs.get("params") == {}
+
+    def test_whatsapp_include_customer_name_sends_name_and_order_id(self, notif_session):
+        from backend.app.services.notification import NotificationEngine
+
+        store, order = _setup_store_and_order(
+            notif_session,
+            current_status="in_transit",
+            customer_name="  Leandro  ",
+            external_id="352380259",
+        )
+        st = notif_session.query(StoreSettings).filter(StoreSettings.store_id == store.id).first()
+        st.whatsapp_include_customer_name_in_body = True
+        notif_session.commit()
+
+        mock_wa = MagicMock()
+        mock_wa.send_template_message.return_value = {
+            "success": True,
+            "message_id": "wamid.mock",
+        }
+        engine = NotificationEngine(whatsapp=mock_wa)
+        engine.evaluate_and_notify(notif_session, order)
+
+        mock_wa.send_template_message.assert_called_once()
+        _args, kwargs = mock_wa.send_template_message.call_args
+        assert kwargs.get("params") == {
+            "customer_name": "Leandro",
+            "order_id": "352380259",
+        }

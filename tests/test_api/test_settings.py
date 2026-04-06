@@ -57,6 +57,7 @@ def test_get_settings(client):
         assert data["whatsapp_token_configured"] is False
         assert data["whatsapp_template_language"] == "es"
         assert data["whatsapp_include_body_params"] is True
+        assert data["whatsapp_include_customer_name_in_body"] is False
     finally:
         db.rollback()
         db.close()

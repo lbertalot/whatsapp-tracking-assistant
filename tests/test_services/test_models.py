@@ -69,6 +69,7 @@ class TestStoreSettingsModel:
         assert settings.ecommerce_sync_enabled is True
         assert settings.whatsapp_enabled is False
         assert settings.whatsapp_include_body_params is True
+        assert settings.whatsapp_include_customer_name_in_body is False
 
     def test_store_settings_unique_per_store(self, db_session):
         from backend.app.models.store import StoreSettings

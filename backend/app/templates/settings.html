@@ -65,6 +65,13 @@
             </div>
 
             <div class="form-group">
+                <label class="settings-checkbox-label">
+                    <input type="checkbox" id="waIncludeCustomerName"> Incluir nombre del cliente (2.ª variable: primero nombre, luego N° pedido)
+                </label>
+                <div class="settings-hint">Activá solo si la plantilla en Meta tiene <strong>dos</strong> variables en el cuerpo (ej. «Hola {{1}}, su pedido {{2}}…»). Si la plantilla solo tiene el número de pedido, dejá esto desmarcado.</div>
+            </div>
+
+            <div class="form-group">
                 <label for="waPhoneId">Phone number ID</label>
                 <input type="text" id="waPhoneId" placeholder="ej: 123456789012345" autocomplete="off">
             </div>
@@ -84,12 +91,14 @@
             <div class="form-group">
                 <label for="waLang">Idioma del template (Meta)</label>
                 <select id="waLang" class="form-select">
-                    <option value="es">es</option>
+                    <option value="es">es (genérico)</option>
+                    <option value="es_ES">es_ES (Spanish — suele ser el de “Español” en Manager)</option>
                     <option value="es_AR">es_AR</option>
+                    <option value="es_MX">es_MX</option>
                     <option value="pt_BR">pt_BR</option>
                     <option value="en">en</option>
                 </select>
-                <div class="settings-hint">Debe coincidir con el idioma aprobado de tus plantillas en Business Manager.</div>
+                <div class="settings-hint">Debe ser <strong>exactamente</strong> el código de la variante aprobada (ej. <code>es_ES</code> si en Manager la plantilla figura como Spanish/España). Si ves error 132001, revisá el detalle de la plantilla en WhatsApp Manager o probá <code>es_ES</code> en lugar de <code>es</code>.</div>
             </div>
 
             <div class="settings-hint" style="margin-bottom:0.75rem;">Token configurado: <strong id="waTokenStatus">—</strong></div>
@@ -173,6 +182,7 @@
     var saveStatus = document.getElementById('saveStatus');
     var waEnabled = document.getElementById('waEnabled');
     var waIncludeBodyParams = document.getElementById('waIncludeBodyParams');
+    var waIncludeCustomerName = document.getElementById('waIncludeCustomerName');
     var waPhoneId = document.getElementById('waPhoneId');
     var waToken = document.getElementById('waToken');
     var waClearToken = document.getElementById('waClearToken');
@@ -188,6 +198,10 @@
     var btnReimportTnOrders = document.getElementById('btnReimportTnOrders');
     var reimportTnStatus = document.getElementById('reimportTnStatus');
     var tnImportHint = document.getElementById('tnImportHint');
+
+    waIncludeBodyParams.addEventListener('change', function() {
+        if (!waIncludeBodyParams.checked) waIncludeCustomerName.checked = false;
+    });
 
     function showAlert(msg, type) {
         alertEl.className = 'alert alert-' + type;
@@ -249,6 +263,7 @@
 
             waEnabled.checked = !!s.whatsapp_enabled;
             waIncludeBodyParams.checked = s.whatsapp_include_body_params !== false;
+            waIncludeCustomerName.checked = s.whatsapp_include_customer_name_in_body === true;
             waPhoneId.value = s.whatsapp_phone_number_id || '';
             waToken.value = '';
             waClearToken.checked = false;
@@ -310,6 +325,7 @@
         var body = {
             whatsapp_enabled: waEnabled.checked,
             whatsapp_include_body_params: waIncludeBodyParams.checked,
+            whatsapp_include_customer_name_in_body: waIncludeCustomerName.checked,
             whatsapp_phone_number_id: waPhoneId.value.trim() || null,
             whatsapp_template_language: waLang.value || 'es',
         };

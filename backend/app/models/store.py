@@ -54,6 +54,8 @@ class StoreSettings(Base):
     whatsapp_enabled = Column(Boolean, default=False)
     # Si False, no se envía `template.components` (plantillas sin variables en el body).
     whatsapp_include_body_params = Column(Boolean, default=True, nullable=False)
+    # Si True y `whatsapp_include_body_params`, envía {{1}} nombre + {{2}} pedido (ver build_template_body_components).
+    whatsapp_include_customer_name_in_body = Column(Boolean, default=False, nullable=False)
     whatsapp_phone_number_id = Column(String(100), nullable=True)
     whatsapp_business_account_id = Column(String(100), nullable=True)
     whatsapp_access_token = Column(Text, nullable=True)
