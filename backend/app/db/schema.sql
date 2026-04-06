@@ -34,6 +34,7 @@ CREATE TABLE store_settings (
     default_phone_region VARCHAR(5),
     whatsapp_enabled BOOLEAN DEFAULT FALSE,
     whatsapp_include_body_params BOOLEAN NOT NULL DEFAULT TRUE,
+    whatsapp_include_customer_name_in_body BOOLEAN NOT NULL DEFAULT FALSE,
     whatsapp_phone_number_id VARCHAR(100),
     whatsapp_business_account_id VARCHAR(100),
     whatsapp_access_token TEXT,

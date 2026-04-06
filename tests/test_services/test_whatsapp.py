@@ -15,6 +15,21 @@ def test_build_template_body_components_order_id_first():
     assert params[1]["text"] == "x"
 
 
+def test_build_template_body_components_customer_name_then_order_id():
+    c = build_template_body_components({"customer_name": "Ana", "order_id": "352380259"})
+    assert c is not None
+    params = c[0]["parameters"]
+    assert params[0]["text"] == "Ana"
+    assert params[1]["text"] == "352380259"
+
+
+def test_build_template_body_components_blank_customer_name_defaults():
+    c = build_template_body_components({"customer_name": "  ", "order_id": "1"})
+    params = c[0]["parameters"]
+    assert params[0]["text"] == "Cliente"
+    assert params[1]["text"] == "1"
+
+
 def test_build_template_body_components_empty():
     assert build_template_body_components({}) is None
 

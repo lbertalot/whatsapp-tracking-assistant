@@ -17,15 +17,27 @@ logger = logging.getLogger(__name__)
 def build_template_body_components(params: Dict[str, Any]) -> Optional[List[dict]]:
     """Arma `template.components` si el body de la plantilla tiene variables.
 
-    Orden: `order_id` primero; luego demás claves alfabéticamente.
+    Orden estable para Meta ({{1}}, {{2}}, …): primero ``customer_name`` si viene en
+    ``params``, luego ``order_id``, luego el resto de claves alfabéticamente.
+    Plantillas típicas: una sola variable (solo ``order_id``) o dos (nombre + pedido).
     """
     if not params:
         return None
     texts: List[str] = []
-    if "order_id" in params:
-        texts.append(str(params["order_id"]))
+    used: set[str] = set()
+    for key in ("customer_name", "order_id"):
+        if key not in params:
+            continue
+        val = params[key]
+        if val is None:
+            continue
+        if key == "customer_name":
+            texts.append(str(val).strip() or "Cliente")
+        else:
+            texts.append(str(val))
+        used.add(key)
     for key in sorted(params.keys()):
-        if key == "order_id":
+        if key in used:
             continue
         texts.append(str(params[key]))
     if not texts:

@@ -14,6 +14,7 @@ class StoreSettingsResponse(BaseModel):
     default_phone_region: Optional[str] = None
     whatsapp_enabled: bool = False
     whatsapp_include_body_params: bool = True
+    whatsapp_include_customer_name_in_body: bool = False
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_token_configured: bool = False
     whatsapp_template_language: str = "es"
@@ -35,6 +36,9 @@ class StoreSettingsResponse(BaseModel):
                 if getattr(s, "whatsapp_include_body_params", None) is None
                 else bool(s.whatsapp_include_body_params)
             ),
+            whatsapp_include_customer_name_in_body=bool(
+                getattr(s, "whatsapp_include_customer_name_in_body", False),
+            ),
             whatsapp_phone_number_id=s.whatsapp_phone_number_id,
             whatsapp_token_configured=bool((s.whatsapp_access_token or "").strip()),
             whatsapp_template_language=(s.whatsapp_template_language or "es").strip() or "es",
@@ -53,6 +57,7 @@ class StoreSettingsUpdate(BaseModel):
     )
     whatsapp_enabled: Optional[bool] = None
     whatsapp_include_body_params: Optional[bool] = None
+    whatsapp_include_customer_name_in_body: Optional[bool] = None
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_access_token: Optional[str] = Field(
         default=None,

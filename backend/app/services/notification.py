@@ -99,7 +99,15 @@ class NotificationEngine:
         if st is None:
             st = db.query(StoreSettings).filter(StoreSettings.store_id == order.store_id).first()
         include_body = _store_include_template_body_params(st)
-        template_params = {"order_id": str(order.external_id)} if include_body else {}
+        if include_body:
+            oid = str(order.external_id)
+            if st and getattr(st, "whatsapp_include_customer_name_in_body", False):
+                name = (order.customer_name or "").strip() or "Cliente"
+                template_params = {"customer_name": name, "order_id": oid}
+            else:
+                template_params = {"order_id": oid}
+        else:
+            template_params = {}
 
         template_name = TEMPLATE_MAP.get(event_type, event_type)
         if st:
