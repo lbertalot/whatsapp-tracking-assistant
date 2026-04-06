@@ -127,24 +127,20 @@ class NotificationEngine:
                 params=template_params,
             )
 
-            attempt = NotificationAttempt(
-                store_id=order.store_id,
-                order_id=order.id,
-                event_type=event_type,
-                idempotency_key=(
-                    idempotency_key
-                    if attempt_num == 1
-                    else f"{idempotency_key}:retry_{attempt_num}"
-                ),
-                template_name=template_name,
-                status="sent" if result["success"] else "failed",
-                provider_message_id=result.get("message_id"),
-                error_code=result.get("error"),
-                error_message=result.get("error_message"),
-                attempt_number=attempt_num,
+            row_key = (
+                idempotency_key
+                if attempt_num == 1
+                else f"{idempotency_key}:retry_{attempt_num}"
             )
-            db.add(attempt)
-            db.flush()
+            self._record_notification_attempt(
+                db,
+                order=order,
+                event_type=event_type,
+                idempotency_key=row_key,
+                template_name=template_name,
+                attempt_num=attempt_num,
+                result=result,
+            )
 
             if result["success"]:
                 self._update_order_success(db, order, event_type, template_name)
@@ -177,6 +173,59 @@ class NotificationEngine:
             "event_type": event_type,
             "error": last_result.get("error_message") if last_result else None,
         }
+
+    def _record_notification_attempt(
+        self,
+        db: Session,
+        *,
+        order: Order,
+        event_type: str,
+        idempotency_key: str,
+        template_name: str,
+        attempt_num: int,
+        result: dict,
+    ) -> None:
+        """Inserta o actualiza la fila por ``idempotency_key`` (reintentos entre ciclos del worker)."""
+        status = "sent" if result["success"] else "failed"
+        existing = (
+            db.query(NotificationAttempt)
+            .filter(NotificationAttempt.idempotency_key == idempotency_key)
+            .first()
+        )
+        if existing:
+            if existing.status == "sent" and not result["success"]:
+                logger.warning(
+                    "Not overwriting sent notification_attempt with failure (key=%s)",
+                    idempotency_key,
+                )
+                db.flush()
+                return
+            prev_status = existing.status
+            existing.template_name = template_name
+            existing.status = status
+            existing.provider_message_id = result.get("message_id")
+            existing.error_code = result.get("error")
+            existing.error_message = result.get("error_message")
+            if prev_status == "failed" and status == "failed":
+                existing.attempt_number = (existing.attempt_number or 0) + 1
+            else:
+                existing.attempt_number = attempt_num
+        else:
+            db.add(
+                NotificationAttempt(
+                    store_id=order.store_id,
+                    order_id=order.id,
+                    event_type=event_type,
+                    idempotency_key=idempotency_key,
+                    template_name=template_name,
+                    status=status,
+                    provider_message_id=result.get("message_id"),
+                    error_code=result.get("error"),
+                    error_message=result.get("error_message"),
+                    attempt_number=attempt_num,
+                )
+            )
+        db.flush()
 
     def _update_order_success(
         self, db: Session, order: Order, event_type: str, template_name: str

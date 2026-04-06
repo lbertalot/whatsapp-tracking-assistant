@@ -217,3 +217,42 @@ class TestNotificationEngine:
             "customer_name": "Leandro",
             "order_id": "352380259",
         }
+
+    def test_failed_attempt_row_updated_on_subsequent_notify(self, notif_session):
+        """No duplicate idempotency_key: prior failed row is updated on retry."""
+        from backend.app.services.notification import NotificationEngine
+
+        store, order = _setup_store_and_order(notif_session, current_status="in_transit")
+        key = f"{store.id}:{order.id}:in_transit"
+        notif_session.add(
+            NotificationAttempt(
+                store_id=store.id,
+                order_id=order.id,
+                event_type="in_transit",
+                idempotency_key=key,
+                template_name="en_transito",
+                status="failed",
+                error_code="132001",
+                error_message="old error",
+                attempt_number=1,
+            )
+        )
+        notif_session.commit()
+
+        mock_wa = MagicMock()
+        mock_wa.send_template_message.return_value = {
+            "success": True,
+            "message_id": "wamid.new",
+        }
+        engine = NotificationEngine(whatsapp=mock_wa)
+        result = engine.evaluate_and_notify(notif_session, order)
+        assert result["sent"] is True
+
+        rows = (
+            notif_session.query(NotificationAttempt)
+            .filter(NotificationAttempt.idempotency_key == key)
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].status == "sent"
+        assert rows[0].provider_message_id == "wamid.new"
