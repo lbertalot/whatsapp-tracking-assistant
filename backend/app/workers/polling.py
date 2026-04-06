@@ -65,6 +65,7 @@ def get_eligible_orders(db: Session) -> List[Order]:
 
 
 def process_order(db: Session, order: Order) -> None:
+    order_id = order.id
     try:
         inst = _tn_installation(db, order.store_id)
         if not inst:
@@ -137,8 +138,8 @@ def process_order(db: Session, order: Order) -> None:
         notification_engine.evaluate_and_notify(db, order)
 
     except Exception:
-        logger.exception("Error processing order %s", order.id)
         db.rollback()
+        logger.exception("Error processing order %s", order_id)
 
 
 def run_polling_cycle(db: Session) -> int:
