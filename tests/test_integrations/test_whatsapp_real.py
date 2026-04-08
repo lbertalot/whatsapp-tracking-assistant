@@ -1,3 +1,4 @@
+import httpx
 from unittest.mock import MagicMock, patch
 
 from backend.app.services.whatsapp import WhatsAppService
@@ -147,3 +148,101 @@ class TestWhatsAppReal:
             )
 
         assert result["success"] is True
+
+    def test_real_send_request_error(self):
+        svc = self._service()
+        with patch(
+            "backend.app.services.whatsapp.httpx.post",
+            side_effect=httpx.ConnectError("connection refused", request=None),
+        ):
+            result = svc.send_template_message(
+                to="+595981123456",
+                template_name="en_transito",
+            )
+        assert result["success"] is False
+        assert result.get("error") == "request_error"
+        assert "connection refused" in result.get("error_message", "")
+
+    def test_real_send_template_translation_404(self):
+        """Graph returns 404 + 132001 (template / locale mismatch) — same path as production."""
+        svc = self._service()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {
+            "error": {
+                "message": "(#132001) Template name does not exist in the translation",
+                "type": "OAuthException",
+                "code": 132001,
+                "error_data": {"details": "template name (x) does not exist in es_ES"},
+            }
+        }
+        with patch("backend.app.services.whatsapp.httpx.post", return_value=mock_resp):
+            result = svc.send_template_message(
+                to="+595981123456",
+                template_name="en_transito",
+                language="es_ES",
+            )
+        assert result["success"] is False
+        assert "132001" in str(result.get("error", ""))
+
+    def test_posts_to_graph_messages_url(self):
+        svc = self._service()
+        svc.api_url = "https://graph.facebook.com/v22.0"
+        svc.phone_number_id = "1030764480123984"
+        called = {}
+
+        def capture(url, **kwargs):
+            called["url"] = url
+            mock_r = MagicMock()
+            mock_r.status_code = 200
+            mock_r.json.return_value = {"messages": [{"id": "wamid.x"}]}
+            return mock_r
+
+        with patch("backend.app.services.whatsapp.httpx.post", side_effect=capture):
+            svc.send_template_message(to="+595981123456", template_name="en_transito")
+
+        assert called["url"] == "https://graph.facebook.com/v22.0/1030764480123984/messages"
+
+    def test_template_includes_customer_name_and_order_body_parameters(self):
+        svc = self._service()
+        captured = {}
+
+        def capture_post(url, **kwargs):
+            captured["json"] = kwargs["json"]
+            mock_r = MagicMock()
+            mock_r.status_code = 200
+            mock_r.json.return_value = {"messages": [{"id": "wamid.2var"}]}
+            return mock_r
+
+        with patch("backend.app.services.whatsapp.httpx.post", side_effect=capture_post):
+            svc.send_template_message(
+                to="+595981123456",
+                template_name="en_transito",
+                params={"customer_name": "Ana", "order_id": "352380259"},
+                language="es",
+            )
+
+        body_params = captured["json"]["template"]["components"][0]["parameters"]
+        assert body_params[0]["text"] == "Ana"
+        assert body_params[1]["text"] == "352380259"
+
+    def test_send_explicit_language_overrides_service_default(self):
+        svc = self._service()
+        svc.template_language = "es_AR"
+        captured = {}
+
+        def capture_post(url, **kwargs):
+            captured["lang"] = kwargs["json"]["template"]["language"]["code"]
+            mock_r = MagicMock()
+            mock_r.status_code = 200
+            mock_r.json.return_value = {"messages": [{"id": "wamid.y"}]}
+            return mock_r
+
+        with patch("backend.app.services.whatsapp.httpx.post", side_effect=capture_post):
+            svc.send_template_message(
+                to="+595981123456",
+                template_name="en_transito",
+                language="es",
+            )
+        assert captured["lang"] == "es"
