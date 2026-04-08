@@ -128,9 +128,7 @@ class NotificationEngine:
             )
 
             row_key = (
-                idempotency_key
-                if attempt_num == 1
-                else f"{idempotency_key}:retry_{attempt_num}"
+                idempotency_key if attempt_num == 1 else f"{idempotency_key}:retry_{attempt_num}"
             )
             self._record_notification_attempt(
                 db,
