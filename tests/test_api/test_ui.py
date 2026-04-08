@@ -1,3 +1,22 @@
+class TestLandingPage:
+    def test_landing_renders(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        html = response.text
+        assert "landing-title" in html or "landing-hero" in html
+        assert "Tiendanube" in html
+        assert "/register" in html
+        assert "/login" in html
+
+    def test_landing_links_to_help_and_privacy(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
+        html = response.text
+        assert "/ayuda/conectar-tiendanube" in html
+        assert "/privacidad" in html
+
+
 class TestLoginPage:
     def test_login_page_renders(self, client):
         response = client.get("/login")

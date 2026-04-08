@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="landing">
+    <section class="landing-hero" aria-labelledby="landing-title">
+        <div class="landing-hero-inner">
+            <p class="landing-badge">Para tiendas online en Latinoamérica</p>
+            <h1 id="landing-title" class="landing-title">Avisos de envío por WhatsApp, sin el caos del chat manual</h1>
+            <p class="landing-lead">
+                Conectá tu <strong>Tiendanube</strong>, usá plantillas aprobadas en Meta y avisale a tus clientes
+                cuando el pedido <strong>está en camino</strong> o <strong>fue entregado</strong>. Vos ves en el panel
+                qué se envió y si algo falló.
+            </p>
+            <div class="landing-cta">
+                <a href="/register" class="btn btn-primary btn-lg">Crear cuenta gratis</a>
+                <a href="/login" class="btn btn-secondary btn-lg">Iniciar sesión</a>
+            </div>
+            <p class="landing-note">
+                No es un chatbot ni un CRM: es <strong>seguimiento post‑compra</strong> con foco en claridad.
+            </p>
+        </div>
+    </section>
+
+    <section class="landing-section" aria-labelledby="pain-title">
+        <div class="landing-section-inner">
+            <h2 id="pain-title" class="landing-h2">Si te suena esto, estás en el lugar correcto</h2>
+            <ul class="landing-cards landing-cards-3">
+                <li class="landing-card">
+                    <span class="landing-card-icon" aria-hidden="true">💬</span>
+                    <h3 class="landing-h3">“¿Dónde está mi pedido?”</h3>
+                    <p>Consultas repetidas por WhatsApp que te sacan tiempo y no dejan registro claro.</p>
+                </li>
+                <li class="landing-card">
+                    <span class="landing-card-icon" aria-hidden="true">📦</span>
+                    <h3 class="landing-h3">El estado ya está en la tienda</h3>
+                    <p>Tu ecommerce ya concentra envío y seguimiento: WTA usa esos datos como fuente de verdad.</p>
+                </li>
+                <li class="landing-card">
+                    <span class="landing-card-icon" aria-hidden="true">👁️</span>
+                    <h3 class="landing-h3">Poca visibilidad</h3>
+                    <p>En el panel ves pedidos, intentos de envío y errores, sin adivinar qué pasó.</p>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="landing-section landing-section-alt" aria-labelledby="how-title">
+        <div class="landing-section-inner">
+            <h2 id="how-title" class="landing-h2">Cómo funciona (en simple)</h2>
+            <ol class="landing-steps">
+                <li>
+                    <span class="landing-step-num">1</span>
+                    <div>
+                        <strong>Registrás tu cuenta</strong> y vinculás Tiendanube con un flujo guiado.
+                    </div>
+                </li>
+                <li>
+                    <span class="landing-step-num">2</span>
+                    <div>
+                        <strong>Configurás WhatsApp</strong> (plantillas aprobadas en Meta, idioma y número de la API).
+                    </div>
+                </li>
+                <li>
+                    <span class="landing-step-num">3</span>
+                    <div>
+                        <strong>El sistema sincroniza</strong> el estado del pedido y envía el mensaje cuando corresponde,
+                        con registro por si hay que revisar un fallo.
+                    </div>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="landing-section" aria-labelledby="value-title">
+        <div class="landing-section-inner">
+            <h2 id="value-title" class="landing-h2">Qué incluye el producto (MVP)</h2>
+            <ul class="landing-checklist">
+                <li>Integración con <strong>Tiendanube</strong> (webhooks y sincronización periódica).</li>
+                <li>Eventos de mensaje: <strong>en tránsito</strong> y <strong>entregado</strong>.</li>
+                <li>Normalización de teléfonos para enviar al número correcto (con región por tienda si hace falta).</li>
+                <li>Panel para listar órdenes y ver el estado de las notificaciones.</li>
+            </ul>
+            <p class="landing-muted">
+                No incluye operador logístico obligatorio ni analytics avanzados: el alcance está acotado a
+                <strong>avisos y visibilidad</strong> post‑compra.
+            </p>
+        </div>
+    </section>
+
+    <section class="landing-section landing-section-cta" aria-labelledby="cta-title">
+        <div class="landing-section-inner landing-cta-box">
+            <h2 id="cta-title" class="landing-h2 landing-h2-center">Empezá cuando quieras</h2>
+            <p class="landing-lead landing-lead-center">
+                Si necesitás ayuda para conectar Tiendanube o entender la configuración de Meta, tenemos una guía paso a paso.
+            </p>
+            <div class="landing-cta">
+                <a href="/register" class="btn btn-primary btn-lg">Crear cuenta</a>
+                <a href="/ayuda/conectar-tiendanube" class="btn btn-secondary btn-lg">Ayuda: conectar Tiendanube</a>
+            </div>
+            <p class="landing-footer-links">
+                <a href="/privacidad">Política de privacidad</a>
+                <span class="separator">·</span>
+                <a href="/login">Ya tengo cuenta</a>
+            </p>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var b = document.querySelector('.app-header .brand');
+    if (b) b.setAttribute('href', '/');
+})();
+</script>
+{% endblock %}
