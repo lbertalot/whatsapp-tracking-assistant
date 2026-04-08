@@ -74,6 +74,41 @@ def test_graph_send_error_may_benefit_from_retry():
     )
 
 
+def test_graph_error_result_parses_meta_error_and_retry_after():
+    import httpx
+
+    resp = httpx.Response(
+        404,
+        json={
+            "error": {
+                "message": "(#132001) Template name does not exist",
+                "type": "OAuthException",
+                "code": 132001,
+            }
+        },
+        headers={"Retry-After": "10"},
+    )
+    from backend.app.services.whatsapp import graph_error_result
+
+    out = graph_error_result(resp)
+    assert out["success"] is False
+    assert "132001" in str(out["error"]) or out["error"] in ("132001", "132001:None")
+    assert "132001" in out["error_message"] or "does not exist" in out["error_message"]
+    assert out["retry_after"] == "10"
+
+
+def test_graph_error_result_non_json_body():
+    import httpx
+
+    resp = httpx.Response(500, content=b"not json")
+    from backend.app.services.whatsapp import graph_error_result
+
+    out = graph_error_result(resp)
+    assert out["success"] is False
+    assert out["error"] == "http_error"
+    assert "500" in out["error_message"]
+
+
 def test_verify_meta_webhook_signature_ok():
     import hashlib
     import hmac
@@ -86,6 +121,32 @@ def test_verify_meta_webhook_signature_ok():
 
 
 class TestWhatsAppService:
+    def test_real_send_not_configured_missing_phone_id(self):
+        svc = WhatsAppService(
+            mock=False,
+            access_token="tok",
+            phone_number_id="",
+            template_language="es",
+        )
+        result = svc.send_template_message(
+            to="+595981123456",
+            template_name="en_transito",
+            params={"order_id": "1"},
+        )
+        assert result["success"] is False
+        assert result.get("error") == "not_configured"
+
+    def test_real_send_not_configured_missing_token(self):
+        svc = WhatsAppService(
+            mock=False,
+            access_token="",
+            phone_number_id="123",
+            template_language="es",
+        )
+        result = svc.send_template_message(to="+595981123456", template_name="en_transito")
+        assert result["success"] is False
+        assert result.get("error") == "not_configured"
+
     def test_mock_send_success(self):
         svc = WhatsAppService(mock=True)
         result = svc.send_template_message(
