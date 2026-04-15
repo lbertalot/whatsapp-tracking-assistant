@@ -183,7 +183,10 @@ class NotificationEngine:
         attempt_num: int,
         result: dict,
     ) -> None:
-        """Inserta o actualiza la fila por ``idempotency_key`` (reintentos entre ciclos del worker)."""
+        """Inserta o actualiza la fila por ``idempotency_key``.
+
+        Reintentos entre ciclos del worker.
+        """
         status = "sent" if result["success"] else "failed"
         existing = (
             db.query(NotificationAttempt)

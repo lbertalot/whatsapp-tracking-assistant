@@ -1,5 +1,6 @@
-import httpx
 from unittest.mock import MagicMock, patch
+
+import httpx
 
 from backend.app.services.whatsapp import WhatsAppService
 
