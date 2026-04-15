@@ -9,6 +9,7 @@ Antes de escribir código, leé estos documentos:
 
 - `docs/SPEC.md` — producto (Parte I), diseño técnico (Parte II) y decisiones ADR (Parte III)
 - `docs/MILESTONES.md` — plan por milestones, dependencias y criterios de aceptación
+- `docs/SKILLS_BUNDLE_WORKFLOW.md` — bundles Cursor/antigravity alineados al stack, fases y prompts ejemplo
 
 ## Stack
 

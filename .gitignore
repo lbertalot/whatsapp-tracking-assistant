@@ -17,3 +17,6 @@ build/
 *.swo
 *.db
 .pytest_cache/
+
+# Local Cursor antigravity-awesome-skills install (not part of app source)
+.cursor/skills/
