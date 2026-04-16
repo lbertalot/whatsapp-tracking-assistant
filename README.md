@@ -11,7 +11,7 @@ Reduce consultas WISMO automatizando avisos de estado de envío y dando visibili
 
 ## Stack
 
-- **Backend**: FastAPI (Python 3.11+)
+- **Backend**: FastAPI (Python 3.12+)
 - **Base de datos**: PostgreSQL
 - **UI**: Jinja2 templates integrados al backend
 - **Infraestructura**: Heroku / Docker local
@@ -116,7 +116,7 @@ heroku ps:scale web=1 worker=1
 ```
 
 - **`release`** en el `Procfile` ejecuta `alembic upgrade head` en cada deploy (antes de que los dynos nuevos reciban tráfico). Revisá en los logs del build la sección *Running release command*.
-- **Python:** la versión se fija con **`.python-version`** (major `3.11`); el buildpack ya no usa `runtime.txt`.
+- **Python:** la versión se fija con **`.python-version`** (hoy `3.12`); el buildpack ya no usa `runtime.txt`.
 
 Si el release falló o necesitás aplicar migraciones a mano:
 

@@ -21,7 +21,7 @@ backend/
 ```
 
 ## Convenciones de código
-- Python 3.11+
+- Python 3.12+
 - Type hints obligatorios en funciones públicas
 - Async para endpoints y operaciones IO (Tiendanube, WhatsApp, DB)
 - SQLAlchemy como ORM
