@@ -11,6 +11,7 @@ Este documento registra **qué bundle** usar en este repo, **en qué orden** con
 | Milestones y criterios | `docs/MILESTONES.md` |
 | Convenciones para agentes | `AGENTS.md` |
 | Docker local | `docs/DOCKER.md` |
+| Checklist de auditoría paso a paso | `docs/AUDIT_CHECKLIST.md` |
 
 **Trazabilidad:** al planificar o revisar un cambio grande, citá en el PR o en la descripción del trabajo: *“alineado a `docs/SKILLS_BUNDLE_WORKFLOW.md`, fase X”*.
 

@@ -15,7 +15,7 @@ Sistema MVP que envía notificaciones automáticas por WhatsApp cuando el estado
 Ante cualquier duda de alcance, comportamiento o diseño, consultá estos archivos primero.
 
 ## Stack decidido
-- **Backend**: FastAPI (Python 3.11+)
+- **Backend**: FastAPI (Python 3.12+)
 - **Base de datos**: PostgreSQL
 - **Infraestructura**: Heroku (web dyno + worker dyno + scheduler + postgres)
 - **UI**: integrada al backend (Jinja2 templates + static assets), NO Next.js

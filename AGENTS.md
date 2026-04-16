@@ -13,7 +13,7 @@ Antes de escribir código, leé estos documentos:
 
 ## Stack
 
-- **Backend**: FastAPI (Python 3.11+)
+- **Backend**: FastAPI (Python 3.12+)
 - **ORM**: SQLAlchemy + Alembic
 - **DB**: PostgreSQL
 - **UI**: Jinja2 templates integrados al backend (NO Next.js, NO React)
