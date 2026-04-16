@@ -26,7 +26,7 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-    # Mantener línea base 3.11 del proyecto; saltos tipo 3.14 requieren validación manual.
+    # Línea base según `.python-version` (hoy 3.12); saltos mayores requieren validación manual.
     ignore:
       - dependency-name: "python"
         update-types: ["version-update:semver-major"]
