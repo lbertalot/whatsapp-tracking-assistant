@@ -1,6 +1,6 @@
 """
-One-off script: send a real WhatsApp message to a test number
-and update the order state in the Heroku Postgres DB.
+One-off script: send a test WhatsApp message to a phone number
+and update the order state in the database.
 """
 
 import os
@@ -19,7 +19,7 @@ from backend.app.models.notification import NotificationAttempt
 from backend.app.models.order import Order
 from backend.app.services.whatsapp import WhatsAppService
 
-TARGET_PHONE = "+543515297390"
+TARGET_PHONE = os.environ.get("DEMO_TARGET_PHONE", "+5491112345678")
 TEMPLATE_NAME = "hello_world"
 TEMPLATE_LANG = "en_US"
 
@@ -109,7 +109,7 @@ def main():
         print("\nMensaje enviado exitosamente.")
         print(f"  message_id: {result['message_id']}")
         print(f"  Revisa tu WhatsApp en {TARGET_PHONE}")
-        print("  Revisa el panel: https://wta-dev-caccfde17ab6.herokuapp.com/panel")
+        print(f"  Revisa el panel: {os.environ.get('APP_BASE_URL', 'http://localhost:8000')}/panel")
     else:
         print("\nEl envio fallo. Revisa las credenciales de Meta.")
 

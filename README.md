@@ -5,125 +5,165 @@
 [![Security Scanning](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/03-security.yml/badge.svg)](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/03-security.yml)
 [![Docker Build](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/04-docker-build.yml/badge.svg)](https://github.com/lbertalot/whatsapp-tracking-assistant/actions/workflows/04-docker-build.yml)
 
-Sistema MVP de notificaciones post-compra por WhatsApp para merchants en **Latinoamérica** (fuente de verdad: **tienda ecommerce**, MVP: **Tiendanube**).
+**MVP** de notificaciones automáticas post-compra por WhatsApp para tiendas online en Latinoamérica.
 
-Reduce consultas WISMO automatizando avisos de estado de envío y dando visibilidad completa al merchant sobre cada notificación.
+Conecta tu tienda Tiendanube, recibe webhooks de órdenes y envía mensajes automatizados de WhatsApp cuando el estado de envío cambia. Incluye un panel web para visualizar órdenes y configurar notificaciones.
 
-## Stack
+## ¿Qué hace?
+
+- 🔗 **Integración con Tiendanube**: OAuth seguro para conectar tu tienda
+- 📦 **Seguimiento de órdenes**: Sincronización automática del estado de envíos
+- 💬 **Notificaciones WhatsApp**: Envío de mensajes automáticos vía Meta Cloud API
+- 📊 **Panel web**: Visualización de órdenes y trazabilidad de notificaciones
+- ⚙️ **Configuración por tienda**: Plantillas, idioma y tokens personalizables
+
+## Stack técnico
 
 - **Backend**: FastAPI (Python 3.12+)
 - **Base de datos**: PostgreSQL
-- **UI**: Jinja2 templates integrados al backend
-- **Infraestructura**: Heroku / Docker local
+- **ORM**: SQLAlchemy + Alembic (migraciones)
+- **UI**: Jinja2 templates (integrado al backend)
 - **WhatsApp**: Meta Cloud API
-- **Estado de envío**: datos de la plataforma de tienda (Tiendanube API + webhooks; sync periódico)
+- **Tests**: pytest
 
-## Setup local
+## Requisitos previos
 
-### Opción A — Docker (recomendado, paridad con Heroku)
+- Python 3.12+
+- PostgreSQL
+- Docker y Docker Compose (opcional, recomendado)
+- Cuenta de [Tiendanube](https://www.tiendanube.com/)
+- Cuenta Business de WhatsApp con Meta Cloud API
+
+## Instalación y ejecución
+
+### Opción A: Docker (recomendado)
 
 ```bash
-cp .env.docker.example .env.docker   # opcional
+# 1. Clonar el repositorio
+git clone https://github.com/lbertalot/whatsapp-tracking-assistant.git
+cd whatsapp-tracking-assistant
+
+# 2. Configurar variables de entorno
+cp .env.docker.example .env.docker
+# Editar .env.docker con tus credenciales
+
+# 3. Iniciar servicios
 docker compose up --build
-# Datos demo (tienda + órdenes TN-100x):
+
+# 4. Crear datos de demostración (opcional)
 docker compose run --rm web python scripts/seed_demo_data.py
-# Por defecto el seed usa SEED_TN_LINK_MODE=oauth_ready (panel pide vincular TN real).
-# Panel demo sin OAuth: SEED_TN_LINK_MODE=demo docker compose run --rm web python scripts/seed_demo_data.py
-# Cuenta nueva sin seed: abrí http://localhost:8000/register (MS-ONB02).
 ```
 
-Detalle: [docs/DOCKER.md](docs/DOCKER.md) · WhatsApp/Meta: [docs/WHATSAPP_META.md](docs/WHATSAPP_META.md)
+La aplicación estará disponible en `http://localhost:8000`
 
-### Opción B — Python en la máquina
+### Opción B: Entorno virtual Python
 
 ```bash
-# 1. Clonar
-git clone <repo-url>
-cd WhatsApp-Tracking-Assistant
+# 1. Clonar el repositorio
+git clone https://github.com/lbertalot/whatsapp-tracking-assistant.git
+cd whatsapp-tracking-assistant
 
-# 2. Entorno virtual
+# 2. Crear entorno virtual
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # En Windows: .venv\Scripts\activate
 
-# 3. Dependencias
+# 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Variables de entorno
+# 4. Configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus valores
+# Editar .env con tus credenciales
 
-# 5. Base de datos
+# 5. Crear base de datos
 createdb wta_dev
+
+# 6. Aplicar migraciones
 alembic upgrade head
 
-# 6. Correr
+# 7. Iniciar aplicación
 uvicorn backend.app.main:app --reload
 ```
 
-## Estructura
+La aplicación estará disponible en `http://localhost:8000`
+
+## Configuración
+
+Todas las credenciales y configuraciones se manejan mediante variables de entorno. Revisa `.env.example` para ver todas las opciones disponibles:
+
+- **Database**: `DATABASE_URL`
+- **Security**: `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`
+- **WhatsApp**: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `META_APP_SECRET`
+- **Tiendanube**: `TIENDANUBE_APP_ID`, `TIENDANUBE_CLIENT_SECRET`
+- **App**: `APP_BASE_URL`, `APP_ENV`, `LOG_LEVEL`
+
+Ver documentación completa en [`docs/WHATSAPP_META.md`](docs/WHATSAPP_META.md) para configurar Meta Cloud API.
+
+## Estructura del proyecto
 
 ```
 backend/app/
-  api/          # Endpoints FastAPI
-  core/         # Config, security, dependencies
-  db/           # DB session, schema
-  models/       # SQLAlchemy models
-  schemas/      # Pydantic schemas
-  services/     # Tiendanube, WhatsApp, notificaciones, phone, estado ecommerce
-  workers/      # Polling worker
-  templates/    # Jinja2 HTML
-  static/       # CSS, JS
+  api/          # Endpoints FastAPI (auth, orders, webhooks, settings)
+  core/         # Configuración, seguridad, dependencias
+  db/           # Sesión de base de datos
+  models/       # Modelos SQLAlchemy (Store, Order, Notification, User)
+  schemas/      # Schemas Pydantic para validación
+  services/     # Lógica de negocio (Tiendanube, WhatsApp, notificaciones)
+  workers/      # Worker de sincronización periódica
+  templates/    # Templates HTML (Jinja2)
+  static/       # Archivos estáticos (CSS, JS)
 
-docs/           # SPEC.md (producto + RFC + ADRs)
-tests/          # pytest
+docs/           # Documentación técnica
+tests/          # Suite de tests con pytest
+scripts/        # Scripts de utilidad (seed, demo)
 ```
 
-## Documentación
+## Uso
 
-- [SPEC.md](docs/SPEC.md) — Producto, diseño técnico (RFC) y decisiones (ADRs)
-- [MILESTONES.md](docs/MILESTONES.md) — Hitos, estado de implementación y tests
-- [PILOT_READINESS.md](docs/PILOT_READINESS.md) — Piloto tienda real (TN + WhatsApp) y DoD
-- [WHATSAPP_META.md](docs/WHATSAPP_META.md) — Meta Cloud API, env vars y panel
-- [META_GO_LIVE_CHECKLIST.md](docs/META_GO_LIVE_CHECKLIST.md) — Checklist antes de producción (Meta)
-- [DOCKER.md](docs/DOCKER.md) — Ejecución local con Docker (paridad Heroku)
-- [CONTRIBUTING.md](CONTRIBUTING.md) — CI/CD, pre-commit, convenciones
+1. **Registro**: Accede a `/register` para crear una cuenta
+2. **Vincular Tiendanube**: Completa el proceso de OAuth desde `/onboarding`
+3. **Configurar WhatsApp**: Ingresa tus credenciales de Meta en `/settings`
+4. **Panel**: Visualiza órdenes y notificaciones en `/panel`
 
-> **CI:** los badges apuntan a `github.com/lbertalot/whatsapp-tracking-assistant`. Si tu fork u org es otro, actualizá las URLs en esta cabecera.
-
-### Rutas HTTP principales (FastAPI)
-
-| Área | Rutas (públicas salvo nota) |
-|------|-----------------------------|
-| Salud | `GET /health`, `GET /ready`, `GET /metrics` (sin JWT; **métricas globales**, ver MS-I05) |
-| Auth / usuario | `POST /auth/login`, `POST /auth/register`, `GET /me` (JWT en órdenes/panel/settings) |
-| Panel datos | `GET /orders`, `GET /panel/stats` (JWT) |
-| Config tienda | `GET/PUT /api/settings` (JWT) |
-| TN OAuth | `GET /integrations/tiendanube/install`, `GET /integrations/tiendanube/callback`; panel: `GET /api/integrations/tiendanube/install-url` (JWT) |
-| Onboarding API | `GET /api/onboarding/status` (JWT) |
-| Webhooks | `POST /webhooks/tiendanube` (HMAC TN), `POST /webhooks/orders` (firma app), `GET/POST /webhooks/whatsapp` (Meta) |
-| UI (HTML) | `/`, `/login`, `/register`, `/panel`, `/onboarding`, `/settings`, `/ayuda/conectar-tiendanube`, `/privacidad` |
-
-## Despliegue (Heroku)
-
-Alineado con [Getting Started on Heroku with Python](https://devcenter.heroku.com/articles/getting-started-with-python): `requirements.txt`, `Procfile`, `.python-version`, Postgres y [Release Phase](https://devcenter.heroku.com/articles/release-phase) para migraciones.
+## Tests
 
 ```bash
-heroku create wta-app
-# Plan mínimo vigente (ver: heroku addons:plans heroku-postgresql)
-heroku addons:create heroku-postgresql:essential-0
-git push heroku main
-heroku ps:scale web=1 worker=1
+# Ejecutar todos los tests
+pytest
+
+# Con cobertura
+pytest --cov=backend/app --cov-report=html
+
+# Tests específicos
+pytest tests/test_api/
+pytest tests/test_services/
 ```
 
-- **`release`** en el `Procfile` ejecuta `alembic upgrade head` en cada deploy (antes de que los dynos nuevos reciban tráfico). Revisá en los logs del build la sección *Running release command*.
-- **Python:** la versión se fija con **`.python-version`** (hoy `3.12`); el buildpack ya no usa `runtime.txt`.
+## Documentación adicional
 
-Si el release falló o necesitás aplicar migraciones a mano:
+- [`docs/SPEC.md`](docs/SPEC.md) — Especificación técnica completa
+- [`docs/DOCKER.md`](docs/DOCKER.md) — Detalles de ejecución con Docker
+- [`docs/WHATSAPP_META.md`](docs/WHATSAPP_META.md) — Configuración de Meta Cloud API
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Guía para contribuir
+- [`SECURITY.md`](SECURITY.md) — Política de seguridad
 
-```bash
-heroku run alembic upgrade head
-```
+## Limitaciones del MVP
 
-Si no tenés el remoto `heroku` en este clon, usá `-a nombre-de-tu-app` (ej. `heroku run alembic upgrade head -a wta-dev`).
+Este es un **MVP (Producto Mínimo Viable)**:
 
-**Webhooks (Tiendanube, Meta):** los dynos **Eco** pueden dormir tras inactividad; el primer request puede tardar. Para entornos donde los callbacks deben ser estables, valorá **`web`** en **Basic** o superior ([Dyno sleeping](https://devcenter.heroku.com/articles/dyno-sleeping)).
+- Solo soporta Tiendanube como plataforma de ecommerce
+- Plantillas de WhatsApp limitadas
+- Sin analytics avanzados
+- No es un CRM completo ni un chatbot
+- Funcionalidad básica de notificaciones post-compra
+
+## Licencia
+
+[MIT License](LICENSE)
+
+## Contribuciones
+
+Las contribuciones son bienvenidas. Por favor revisa [`CONTRIBUTING.md`](CONTRIBUTING.md) para más detalles sobre el flujo de trabajo y las convenciones del proyecto.
+
+---
+
+**Nota**: Este proyecto es un MVP de demostración. Para uso en producción se recomienda revisar las configuraciones de seguridad, escalabilidad y cumplimiento normativo según tu región.
