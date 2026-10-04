@@ -79,7 +79,7 @@ def wipe_seed_store(db: Session, user_email: str, legacy_external_id: str | None
 
 def seed() -> None:
     user_email = os.environ.get("SEED_USER_EMAIL", "demo@tiendademo.py")
-    user_password = os.environ.get("SEED_USER_PASSWORD", "DemoWTA2026!")
+    user_password = os.environ.get("SEED_USER_PASSWORD", "Demo2026Pass!")
     mode = os.environ.get("SEED_TN_LINK_MODE", "oauth_ready").strip().lower()
     if mode not in ("demo", "oauth_ready"):
         raise SystemExit(f"SEED_TN_LINK_MODE inválido: {mode!r} (usar demo u oauth_ready)")

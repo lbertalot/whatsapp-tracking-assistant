@@ -47,7 +47,7 @@ docker compose run --rm web python scripts/seed_demo_data.py
 Credenciales del usuario demo del seed (definidas por defecto **en el script**; opcionalmente sobreescribibles con `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` solo si hace falta otro email para el wipe o otra contraseña):
 
 - **Email:** `demo@tiendademo.py`
-- **Contraseña:** `DemoWTA2026!`
+- **Contraseña:** Ver valor default en `scripts/seed_demo_data.py` o definir `SEED_USER_PASSWORD` en `.env`
 
 En producción el merchant crea cuenta vía **`/register`** (MS-ONB02); no hace falta poner `SEED_USER_*` en `.env`.
 
