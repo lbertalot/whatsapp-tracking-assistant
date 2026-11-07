@@ -29,7 +29,7 @@ def test_tn_oauth_state_roundtrip():
 def test_tn_oauth_state_rejects_wrong_purpose():
     from datetime import datetime, timedelta
 
-    from jose import jwt
+    import jwt
 
     from backend.app.core.config import settings
     from backend.app.core.security import decode_tn_oauth_state
