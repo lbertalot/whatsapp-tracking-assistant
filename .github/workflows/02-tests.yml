@@ -57,7 +57,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Test report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         continue-on-error: true
         with:
